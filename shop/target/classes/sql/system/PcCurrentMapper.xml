@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.system.dao.PcCurrentDao">
+
+	<!-- pc현황 목록 조회 -->
+	<select id="pcCurrentList" resultType="HashMap">
+
+ select pc_no	
+			               ,pc_name
+			               ,ifnull(useYn,'N') as useYn
+			               ,ifnull(login_time,'') as login_time
+			               ,ifnull(logout_time,'') as logout_time
+			               ,ifnull(use_time,'') as use_time
+			               ,ifnull(amt,0) as amt
+	         		  	   from (
+	         
+			                  select pci.pc_no
+			                       , pci.pc_name
+			                       , ( 
+			                           select case when ifnull(pc.logout_time,'Y') = 'Y' then 'Y'               
+			                                       else 'N' 
+			                                  end  as useYn
+			                            from tb_pc pc 
+			                           where pc.pc_no = pci.pc_no
+			                             and pc.login_time = (
+			                                             select ifnull(max(pc2.login_time),now())
+			                                               from tb_pc pc2 
+			                                              where pc2.pc_no = pc.pc_no
+			                                              group by pc2.pc_no
+			                                          )
+			                                 
+			                         ) as useYn
+                   		    , ( 
+		                           select DATE_FORMAT(pc.login_time, '%Y-%m-%d')
+		                            from tb_pc pc 
+		                           where pc.pc_no = pci.pc_no
+		                             and pc.login_time = (
+		                                                select ifnull(max(pc2.login_time),now())
+		                                                  from tb_pc pc2 
+		                                                 where pc2.pc_no = pc.pc_no
+		                                                 group by pc2.pc_no
+		                                             )
+		                                    
+		                            ) as login_time       
+                          , ( 
+	                              select DATE_FORMAT(pc.logout_time, '%Y-%m-%d')
+	                               from tb_pc pc 
+	                              where pc.pc_no = pci.pc_no
+	                                and pc.login_time = (
+	                                                select ifnull(max(pc2.login_time),now())
+	                                                  from tb_pc pc2 
+	                                                 where pc2.pc_no = pc.pc_no
+	                                                 group by pc2.pc_no
+	                                             )
+	                                    
+	                            ) as logout_time  
+                         , ( 
+	                              select TIMESTAMPDIFF(HOUR , pc.login_time, pc.logout_time) 
+	                               from tb_pc pc 
+	                              where pc.pc_no = pci.pc_no
+	                                and pc.login_time = (
+	                                                select ifnull(max(pc2.login_time),now())
+	                                                  from tb_pc pc2 
+	                                                 where pc2.pc_no = pc.pc_no
+	                                                 group by pc2.pc_no
+	                                             )
+	                                    
+	                            ) as use_time 
+                          , ( 
+	                              select FORMAT(TRUNCATE( 100*(TIMESTAMPDIFF(MINUTE, date_format(pc.login_time, '%Y-%m-%d %H:%i:%s'), date_format(now(), '%Y-%m-%d %H:%i:%s')) / 60), -2), 0)
+	                               from tb_pc pc 
+	                              where pc.pc_no = pci.pc_no
+	                                and pc.login_time = (
+	                                                select ifnull(max(pc2.login_time),now())
+	                                                  from tb_pc pc2 
+	                                                 where pc2.pc_no = pc.pc_no
+	                                                 group by pc2.pc_no
+	                                             )
+	                                    
+	                            ) as amt     
+	                       from tb_pcinfo pci
+	                      LIMIT #{pageIndex}, #{pageSize}	
+	                 
+	                     )ANY
+	</select>
+	
+
+		<select id="searchUserList" resultType="HashMap">
+		
+		SELECT  loginID
+      		     ,user_type 
+      		     ,name
+      		     ,tel1
+      		     ,tel2
+      		     ,tel3
+		 FROM tb_userinfo
+		LIMIT #{pageIndex}, #{pageSize}
+		
+		
+
+	</select>
+	
+	
+	
+    <select id="countListPcCurrent" resultType="int">
+		SELECT COUNT(1) AS tot_cnt FROM tb_pcinfo
+	</select>
+	
+	
+	<select id="countUserList" resultType="int">
+		SELECT COUNT(1) AS tot_cnt FROM tb_userinfo
+	</select>
+	
+	
+	
+	<select id="userAmt" resultType="Map">
+	
+                   		select 
+	                               tor.pc_no
+	                              ,tor.loginID
+	                              ,MAX(tor.seq) as seq
+                                  ,tp.login_time
+                                  ,tp.logout_time
+	                              ,FORMAT(ROUND((100*TIMESTAMPDIFF(MINUTE, date_format(tp.login_time, '%Y-%m-%d %H:%i:%s'), date_format(now(), '%Y-%m-%d %H:%i:%s')) / 60), -2), 0) as pcuseamt
+	                              ,tor.foodamt as foodamt
+	                              ,FORMAT(ROUND(((100*TIMESTAMPDIFF(MINUTE, date_format(tp.login_time, '%Y-%m-%d %H:%i:%s'), date_format(now(), '%Y-%m-%d %H:%i:%s')) / 60) + foodamt),-2),0) as totalamt
+	                              ,tor.cpl_yn
+                             from tb_order tor
+                                  ,tb_pc tp
+		                	where tor.pc_no = #{pc_no}
+                              and tor.pc_no = tp.pc_no
+                             group by tor.pc_no
+                             order by tp.login_time DESC
+                             limit 1
+	
+	</select>
+
+	
+	<select id="selectamt" resultType="Map">
+	       SELECT tp.pc_no
+		       , tp.login_time
+			   , tp.loginID
+			   , tp.seq
+			   , FORMAT(TRUNCATE( 1*(TIMESTAMPDIFF(MINUTE, date_format(tp.login_time, '%Y-%m-%d %H:%i:%s'), date_format(now(), '%Y-%m-%d %H:%i:%s')) / 60), -2), 0) as amt
+		   from tb_pc tp            
+		  where tp.pc_no = #{pc_no}
+			and tp.loginID = #{loginID}
+			 order by tp.login_time DESC
+           limit 1
+	</select>
+	
+	
+	
+	<update id="userPaymentPc">
+	     	  UPDATE  tb_pc pc
+			           , ( 
+		                     SELECT tp.pc_no
+		                      	  , tp.login_time
+		                      	  , tp.loginID
+		                    	  , tp.seq
+		                   	      , FORMAT(TRUNCATE( 1*(TIMESTAMPDIFF(MINUTE, date_format(tp.login_time, '%Y-%m-%d %H:%i:%s'), date_format(now(), '%Y-%m-%d %H:%i:%s')) / 60), -2), 0) as amt
+		                       from tb_pc tp            
+		                      where tp.pc_no = #{pc_no}
+		                        and tp.loginID = #{loginID}
+			             ) as coltp
+			         SET pc.logout_time = now()
+			            ,pc.amt = coltp.amt
+			         where pc.pc_no = #{pc_no}
+			           and pc.loginID = #{loginID}
+			           and pc.seq = #{seq}
+	</update>
+	
+	
+	
+	<update id="userPaymentOrder">
+	UPDATE tb_order tor
+					  ,tb_pc tp
+			         SET tor.cpl_yn = "Y"
+			            ,tor.pcuseamt = (FORMAT(ROUND((10*TIMESTAMPDIFF(MINUTE, date_format(tp.login_time, '%Y-%m-%d %H:%i:%s'), date_format(now(), '%Y-%m-%d %H:%i:%s')) / 60), -2), 0))
+			         where tor.pc_no = #{pc_no}
+			           and tor.loginID = #{loginID}
+			           and tor.seq = #{seq}
+		               and tp.pc_no = tor.pc_no;
+	</update>
+	
+	
+	
+	<insert id="InsertOrder" parameterType="Map">
+		<selectKey keyProperty="seq" resultType="int" order="BEFORE">
+	      select ifnull(max(seq),0)+1 as seq from tb_order where loginID = #{loginID} and pc_no = #{pc_no}
+	    </selectKey>
+		insert into tb_order(pc_no, loginID, seq , pcuseamt, foodamt, totalamt, cpl_yn, reg_date)
+		values (#{pc_no},#{loginID},#{seq},"500","0","0",null,now())
+	</insert>
+	
+	
+	
+	<insert id="InsertSeat" parameterType="Map">
+		<selectKey keyProperty="seq" resultType="int" order="BEFORE">
+	      select ifnull(max(seq),0)+1 as seq from tb_pc where loginID = #{loginID} and pc_no = #{pc_no}
+	    </selectKey>
+		insert into tb_pc(pc_no, loginID, seq , login_time, logout_time, amt, nocust_yn, use_time)
+		values (#{pc_no},#{loginID},#{seq},now(),null,null,null,null)
+	</insert>
+
+	
+	
+</mapper>

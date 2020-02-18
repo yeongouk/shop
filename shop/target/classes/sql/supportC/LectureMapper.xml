@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.supportC.dao.LectureDao">
+
+	<!-- 수강 강의 목록 조회 -->
+	<select id="listLecture" resultType="java.util.Map">
+		/*kr.kosmo.jobkorea.supportC.dao.listLecture*/
+		select tl.title
+		      ,date_format(tl.startdate, '%Y-%m-%d') as startdate
+		      ,date_format(tl.enddate, '%Y-%m-%d') as enddate
+		      ,tl.pcnt
+		      ,tu.name
+		      ,tl.no
+		      ,(select COUNT(*) from tb_tcourse where no=tl.no) as aply
+		 from tb_lecture tl
+		     ,tb_userinfo tu
+		 where tl.loginID = tu.loginID
+		   LIMIT #{pageIndex}, #{pageSize}	
+	</select>
+	
+	<!-- 수강 강의 목록 총 갯수 조회 -->
+	<select id="countListLecture" resultType="int">
+		/*kr.kosmo.jobkorea.supportC.dao.listLecture.countListLecture*/
+		SELECT COUNT(*)as cnt FROM (select tl.title
+		      ,date_format(tl.startdate, '%Y-%m-%d') as startdate
+		      ,date_format(tl.enddate, '%Y-%m-%d') as enddate
+		      ,tl.pcnt
+		      ,tu.name
+		      ,tl.no
+		      ,(select COUNT(*) from tb_tcourse where no=tl.no) as aply
+		 from tb_lecture tl
+		     ,tb_userinfo tu
+		 where tl.loginID = tu.loginID)a
+	</select>
+
+	<select id="selectLectureDtl" resultType="kr.kosmo.jobkorea.supportC.model.LectureModel">
+		/*kr.kosmo.jobkorea.supportC.dao.listLecture.countListLecture*/
+		    select title
+			      ,TIMESTAMPDIFF(DAY, tl.startdate, enddate) as date
+			      ,plan
+			      ,tl.no as no
+			      ,( 
+			          SELECT COUNT(*) 
+		                FROM tb_tcourse tt
+		               where tt.no = tl.no
+		                 AND tt.loginID = #{loginID}
+			       ) as count
+			      ,tl.filename
+			  from tb_lecture tl
+			      ,tb_userinfo tu
+			 where tl.loginID = tu.loginID
+			    AND tl.title = #{title}
+			    AND tu.name = #{name}
+	</select>
+	
+	<select id="checkLecture" resultType="int">
+		/*kr.kosmo.jobkorea.supportC.dao.listLecture.countListLecture*/
+		  SELECT COUNT(*) 
+		      FROM tb_tcourse tt
+		          ,tb_lecture tl
+		      where tt.no = tl.no
+		        AND tt.loginID = #{loginID}
+		        AND tl.no = #{no}
+	</select>
+	
+	
+	<!-- 수강 신청 -->
+	<insert id="lectureDtlinit" parameterType="java.util.Map">
+		insert into tb_tcourse(no, loginID, restyn, evaluation)
+		values (#{no},#{loginID},null,null)
+	</insert>
+	
+	
+	<!-- 수강 취소 -->
+	<delete id="lectureDtldele" parameterType="java.util.Map">
+		delete from tb_tcourse 
+			where no = #{no}
+			  AND loginID = #{loginID}
+	</delete>
+	
+	
+	<select id="selectLecturePlan" resultType="kr.kosmo.jobkorea.supportC.model.LectureModel">
+		/*kr.kosmo.jobkorea.supportC.dao.listLecture.countListLecture*/
+		select no
+		      ,filename
+		      ,filepath
+		      ,filesize
+		     from tb_lecture
+		     where no = #{no}
+	</select>
+	
+	
+</mapper>

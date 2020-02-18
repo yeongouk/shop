@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageF.dao.RoomInfoDAO">
+
+	<!-- 강의실 LIST 조회-->
+	<select id="selectListRoomLIST" resultType="HashMap">
+		SELECT name,
+		       room,
+		       ccount,
+		       etc       
+		FROM tb_roomInfo 
+		WHERE 1=1
+			<if test="(room != null) and (!room.equals(''))">
+				AND room like CONCAT('%',#{room},'%')
+			</if>
+		ORDER BY room ASC	 		
+		LIMIT #{pageIndex}, #{pageSize}
+	</select>
+
+	
+	<select id="cntRoomList" resultType="int">
+		SELECT count(room) 
+		 FROM  tb_roomInfo
+	     WHERE 1=1
+		<if test="(room != null) and (!room.equals(''))">
+			AND room like CONCAT('%',#{room},'%')
+		</if> 		
+	</select>
+
+	<!-- 등록 -->
+	<insert id="insertRoomInfo">
+		INSERT INTO tb_roominfo
+						(
+						 room
+						,name 
+						,ccount
+						,etc
+			    )VALUES(
+					   	#{room}
+					   ,#{name}
+					   ,#{ccount}
+					   ,#{etc}
+				)
+	</insert>
+	
+	
+
+
+</mapper>
+
+
+

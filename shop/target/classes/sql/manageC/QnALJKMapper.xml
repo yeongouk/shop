@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageC.dao.QnALJKDao">
+	
+	<!-- Q&A 게시판 리스트 뿌리기 -->
+	<select id="selectQnaLjkList" resultType="kr.kosmo.jobkorea.manageC.model.QnALJKModel" >
+		SELECT	@num:=@num+1 as wno2	
+    		    ,tq.wno
+    			,tq.title
+    			,tq.note
+         		,tq.regID
+    			,tq.reg_date
+    			,tq.update_date
+		        ,tq.groupWno
+		        ,tq.groupOrd
+		        ,tq.groupLayer
+      	        ,CASE tu.user_type WHEN 'C' THEN '학생' WHEN 'D' THEN '강사' ELSE '관리자' END as user_type
+      	        ,case when date_format(reg_date, '%Y-%m-%d') = date_format(now(), '%Y-%m-%d') then 'y' else 'n' end as newyn
+      	        ,(select COUNT(*) from tb_qna_comment where wno=tq.wno) as cnt
+		  FROM tb_qna tq
+          ,tb_userinfo tu
+		 WHERE (@num:=#{pageIndex})=#{pageIndex}
+		 AND tq.regId = tu.loginID
+      <if test="(title1 != null) and (!title1.equals(''))">
+          AND title LIKE concat('%', #{title1}, '%')
+      </if>
+      <if test="(from_date != null) and (!from_date.equals(''))">
+          AND reg_date <![CDATA[>=]]> STR_TO_DATE(#{from_date}, '%Y-%m-%d')
+      </if>         
+      <if test="(to_date != null) and (!to_date.equals(''))">
+          AND reg_date <![CDATA[<=]]> STR_TO_DATE(#{to_date}, '%Y-%m-%d')
+      </if>   
+		order by groupWno desc, groupOrd desc
+		LIMIT #{pageIndex}, #{pageSize}
+	</select>
+
+
+<!-- Q&A 게시판 수 구하기  -->	
+	<select id="selectqnaListLJKCnt" resultType="int">
+		select count(1) as total_cnt from tb_qna
+	</select>
+	
+	
+	<!-- Q&A 게시판 1건 상세정보 -->
+	<select id="detailQnALJKlist" resultType="kr.kosmo.jobkorea.manageC.model.QnALJKModel">
+			SELECT	@num:=@num+1 as wno2	
+				    ,   wno
+					,	regId
+					,	title
+					,	note
+				FROM	tb_qna
+				WHERE wno = #{wno}
+	</select>
+	
+	<!-- Q&A 1건 추가 / 신규등록   -->
+	<insert id="insertQna" parameterType="java.util.Map">
+        <selectKey resultType="int" keyProperty="rwno" order="BEFORE">
+            select (IFNULL(MAX(wno),0) + 1) as wno from tb_qna
+        </selectKey>  
+		insert into tb_qna ( wno, regId, title, note, reg_date, update_date, groupWno, groupOrd, groupLayer) 
+			VALUES ( #{rwno}, #{regId}, #{title}, #{note}, now(), now(), #{rwno}, 0, 0)
+	</insert>
+	
+	
+	<!--Q&A 1건 수정  -->
+	<update id="updateQna" parameterType="java.util.Map">
+		update tb_qna
+			set title = #{title}, note = #{note} , update_date = now()
+		where wno = #{wno} 
+	</update>
+	
+	
+	<!--Q&A 1건 삭제  -->
+	<delete id="deleteQna" parameterType="java.util.Map">
+		delete from tb_qna where wno = #{wno}
+	</delete>
+	
+		<!-- 답글이 삽입될 위치를 확보하기 위해 조건에 만족하는 seq를 1씩 증가시킨다. -->	
+	<update id="replyIncrement" parameterType="java.util.HashMap">
+		<![CDATA[
+			update tb_qna set groupOrd= groupOrd + 1 where groupWno = #{groupWno} and groupOrd >= #{groupOrd}
+		]]>
+	
+	</update>
+	
+		<!-- 
+		
+		groupWno  = ref
+		
+		groupOrd   = seq
+		
+		groupLayer = lev
+		
+	    -->		
+ 
+	<!-- 답글 한 건을 저장한다. -->
+	<insert id="replyInsertQna" parameterType="kr.kosmo.jobkorea.manageC.model.QnALJKModel">
+        <selectKey resultType="int" keyProperty="rwno" order="BEFORE">
+            select (IFNULL(MAX(wno),0) + 1) as wno from tb_qna
+        </selectKey>  
+		insert into tb_qna  ( wno, regId, title, note, reg_date, update_date, groupWno, groupOrd, groupLayer) 
+		values (#{rwno}, #{regId}, #{title}, #{note}, now(), now(), #{groupWno}, #{groupOrd}, #{groupLayer}+1)
+	
+	</insert>
+	
+	
+		<!-- Q&A 1건 추가 / 신규등록   -->
+	<insert id="commentInsert" parameterType="java.util.Map">
+        <selectKey resultType="int" keyProperty="rc_no" order="BEFORE">
+            select (IFNULL(MAX(c_no),0) + 1) as c_no from tb_qna_comment
+        </selectKey>  
+		insert into tb_qna_comment ( c_no, wno, c_title, c_note, c_regId, c_reg_date, c_update_date) 
+			VALUES ( #{rc_no}, #{wno}, null, #{c_note}, #{regId}, now(), now())
+	</insert>
+	
+	
+		<!-- Q&A 게시판 1건 상세정보 -->
+	<select id="commentList" resultType="kr.kosmo.jobkorea.manageC.model.QnACommentLJKKModel">
+			SELECT	@num:=@num+1 as wno2	
+				    ,   c_no
+					,	wno
+					,	c_title
+					,	c_note
+					,	c_regId
+					,	date_format(c_reg_date, '%Y-%m-%d') as c_reg_date
+					,	c_update_date
+				FROM	tb_qna_comment
+				WHERE wno = #{wno}
+	</select>
+
+</mapper>

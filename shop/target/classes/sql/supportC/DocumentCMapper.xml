@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.supportC.dao.DocumentDAOC">
+
+	<select id="SelectDocumentList" resultType="kr.kosmo.jobkorea.supportC.model.DocumentCModel">
+		SELECT nt_no
+		    ,  nt_title
+		    ,  nt_note
+		    ,  write_date
+		    ,  loginID
+		    ,  filename
+		    ,  filepath
+		    ,  filesize
+		  FROM tb_notice
+		 WHERE 1 = 1
+		 <if test="(nt_title != null) and (!nt_title.equals(''))">
+			 AND nt_title LIKE concat('%', #{nt_title}, '%')
+		 </if>
+		 <if test="(from_date != null) and (!from_date.equals(''))">
+		 	AND write_date <![CDATA[>=]]> STR_TO_DATE(#{from_date}, '%Y-%m-%d')
+		 </if>
+		 <if test="(to_date != null) and (!to_date.equals(''))">
+		    AND write_date <![CDATA[<=]]> STR_TO_DATE(#{to_date}, '%Y-%m-%d')
+		 </if>
+		 ORDER BY write_date DESC
+		 LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+	<select id="countDocument" resultType="int">
+		SELECT COUNT(1) FROM tb_notice
+	</select>
+	
+	<!-- 학습자료 상세 조회  -->
+	<select id="readDocumentOne" resultType="kr.kosmo.jobkorea.supportC.model.DocumentCModel">
+		 SELECT  nt_no
+		 		,nt_title
+		 		,nt_note
+		 		,filename
+		 		,filepath
+		 		,filesize
+		 		,write_date
+		 		,loginID
+		   FROM  tb_notice
+		  WHERE  nt_no=#{nt_no}
+	</select>
+	
+	
+	
+	
+	
+</mapper>

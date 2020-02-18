@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.system.dao.CmntMgrDao">
+
+	<!-- 커뮤니티 목록 조회 -->
+	<select id="listCmnt" resultType="kr.kosmo.jobkorea.system.model.CmntMgrModel">
+		/*kr.kosmo.jobkorea.system.dao.CmntMgrDao.listCmnt*/
+		SELECT cmnt_id
+		, cmnt_nm
+		, cmnt_dvs_cod
+		, atrt_dvs_cod
+		, rcnt_poa
+		, cmt_poa
+		, use_poa
+		, fst_enlm_dtt
+		, fst_rgst_sst_id
+		, fnl_mdfd_dtt
+		, fnl_mdfr_sst_id
+		FROM tm_cmnt_mst
+		WHERE 1=1
+		AND dlt_poa = 'N'
+	</select>
+	
+	<!-- 커뮤니티 단건 조회 -->
+	<select id="selectCmnt" resultType="kr.kosmo.jobkorea.system.model.CmntMgrModel">
+		/*kr.kosmo.jobkorea.system.dao.CmntMgrDao.selectCmnt*/
+		SELECT cmnt_id
+		, cmnt_nm
+		, cmnt_dvs_cod
+		, atrt_dvs_cod
+		, rcnt_poa
+		, cmt_poa
+		, use_poa
+		, dlt_poa
+		, fst_enlm_dtt
+		, fst_rgst_sst_id
+		, fnl_mdfd_dtt
+		, fnl_mdfr_sst_id
+		from tm_cmnt_mst
+		WHERE 1=1
+		AND cmnt_id = #{cmnt_id}
+	</select>
+		
+	<!-- 커뮤니티 저장 -->
+	<insert id="insertCmnt">
+		/*kr.kosmo.jobkorea.system.dao.CmntMgrDao.insertCmnt*/
+		INSERT INTO tm_cmnt_mst
+		(
+			cmnt_id
+			, cmnt_nm
+			, cmnt_dvs_cod
+			, atrt_dvs_cod
+			, rcnt_poa
+			, cmt_poa
+			, fst_enlm_dtt
+			, fst_rgst_sst_id
+			, fnl_mdfd_dtt
+			, fnl_mdfr_sst_id
+
+		)
+		VALUES
+		(	
+			CONCAT('BM', LPAD(nextval('CmntMgr'), 4, '0'))
+			, #{cmnt_nm}
+			, #{cmnt_dvs_cod}
+			, #{atrt_dvs_cod}
+			, #{rcnt_poa}
+			, #{cmt_poa}
+			, NOW()
+			, #{fst_rgst_sst_id}
+			, NOW()
+			, #{fnl_mdfr_sst_id}
+		)
+	</insert>
+	
+	<!-- 커뮤니티 수정 -->
+	<update id="updateCmnt">
+		/*kr.kosmo.jobkorea.system.dao.CmntMgrDao.updateCmnt*/
+		UPDATE tm_cmnt_mst SET
+			cmnt_nm	= #{cmnt_nm} 
+			, cmnt_dvs_cod	= #{cmnt_dvs_cod} 
+			, atrt_dvs_cod	= #{atrt_dvs_cod} 
+			, rcnt_poa	= #{rcnt_poa} 
+			, cmt_poa	= #{cmt_poa} 
+			, use_poa	= #{use_poa}   
+			, fnl_mdfd_dtt	= NOW() 
+			, fnl_mdfr_sst_id = #{fnl_mdfr_sst_id}
+		WHERE	cmnt_id = #{cmnt_id}
+	</update>
+	
+	<!-- 커뮤니티 삭제 -->
+	<update id="deleteCmnt">
+		/*kr.kosmo.jobkorea.system.dao.CmntMgrDao.deleteCmnt*/
+		UPDATE tm_cmnt_mst SET
+				dlt_poa = 'Y'
+			,	use_poa = 'N'
+			,	fnl_mdfd_dtt = NOW()
+			,	fnl_mdfr_sst_id = #{fnl_mdfr_sst_id}
+			WHERE	cmnt_id = #{cmnt_id}
+	</update>
+</mapper>

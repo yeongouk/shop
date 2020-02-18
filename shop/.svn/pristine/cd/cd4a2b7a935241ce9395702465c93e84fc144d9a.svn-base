@@ -1,0 +1,628 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.dashboard.dao.DashboardDao">
+
+	<!-- 의뢰서 진행단계별 건수 조회 -->
+	<select id="listWrqPrgrStpCnt" resultType="hashMap">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.listWrqPrgrStpCnt */
+		SELECT	DA.PRGR_STP_DVS_COD
+			,	DB.DTL_COD_NM AS PRGR_STP_DVS_COD_NM
+			,	IFNULL(DA.PRGR_STP_DVS_COD_CNT, 0) AS PRGR_STP_DVS_COD_CNT
+		FROM	(
+					SELECT	CA.PRGR_STP_DVS_COD
+						,	COUNT(1) AS PRGR_STP_DVS_COD_CNT
+					FROM	(
+								SELECT	BA.WRQ_ID
+									,	BA.PRGR_STP_DVS_COD
+								FROM	(
+											SELECT	AB.WRQ_ID
+												,	AB.PRGR_STP_DVS_COD
+											FROM	tm_wrq_mst AA
+													INNER JOIN tn_wrq_prgr_stp AB ON AA.WRQ_ID = AB.WRQ_ID
+													INNER JOIN tm_ofc_mst AC ON AA.OFC_ID = AC.OFC_ID
+											WHERE	AA.WRQ_DVS_COD = #{wrq_dvs_cod}
+												AND	AA.DLT_POA = 'N'
+												<choose>
+													<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'M'.toString())">
+														AND 1 = 1
+													</when>
+													<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'A'.toString())">
+														AND (AC.TRP_DVS_ID = #{ofcId} OR AC.OFC_ID = #{ofcId})
+													</when>
+													<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'H'.toString())">
+														AND AC.OFC_ID = #{ofcId}
+													</when>
+													<otherwise>
+														AND 1=2
+													</otherwise>
+												</choose>
+											ORDER BY AB.WRQ_ID ASC, AB.PRGR_STP_DVS_COD DESC
+										) BA
+								GROUP BY BA.WRQ_ID
+							) CA
+					GROUP BY CA.PRGR_STP_DVS_COD
+				) DA
+				LEFT OUTER JOIN tc_comn_dtl_cod DB ON DA.PRGR_STP_DVS_COD = DB.DTL_COD AND DB.GRP_COD = 'PRGR_STP_DVS_COD'
+		WHERE	DB.DTL_COD != 'A'
+		  AND DB.DTL_COD != 'Z'
+		ORDER BY DB.ODR ASC
+	</select>
+	
+	
+	<!-- 의뢰 및 작업 진행 현황 -->
+	<select id="listPrgrStat" resultType="hashMap">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.listPrgrStat */
+		SELECT	DA.DTL_COD_NM AS PRGR_STP_DVS_COD_NM
+			,	DA.DTL_COD AS PRGR_STP_DVS_COD
+			,	IFNULL(DB.YESTERDAY_D, 0) AS YESTERDAY_D
+			,	IFNULL(DB.TODAY_D, 0) AS TODAY_D
+			,	IFNULL(DB.YESTERDAY_M, 0) AS YESTERDAY_M
+			,	IFNULL(DB.TODAY_M, 0) AS TODAY_M
+		FROM	tc_comn_dtl_cod DA
+				LEFT OUTER JOIN (
+					SELECT	CB.PRGR_STP_DVS_COD
+						,	SUM(CASE WHEN (DATE_FORMAT(CB.REQ_PRGR_WRK_DTT, '%Y%m%d') = DATE_FORMAT(NOW() - INTERVAL 1 DAY,'%Y%m%d')) AND (CA.WRQ_DVS_COD = 'D') THEN 1 ELSE 0 END) AS YESTERDAY_D
+						,	SUM(CASE WHEN (DATE_FORMAT(CB.REQ_PRGR_WRK_DTT, '%Y%m%d') = DATE_FORMAT(NOW(),'%Y%m%d')) AND (CA.WRQ_DVS_COD = 'D') THEN 1 ELSE 0 END) AS TODAY_D
+						,	SUM(CASE WHEN (DATE_FORMAT(CB.REQ_PRGR_WRK_DTT, '%Y%m%d') = DATE_FORMAT(NOW() - INTERVAL 1 DAY,'%Y%m%d')) AND (CA.WRQ_DVS_COD = 'M') THEN 1 ELSE 0 END) AS YESTERDAY_M
+						,	SUM(CASE WHEN (DATE_FORMAT(CB.REQ_PRGR_WRK_DTT, '%Y%m%d') = DATE_FORMAT(NOW(),'%Y%m%d')) AND (CA.WRQ_DVS_COD = 'M') THEN 1 ELSE 0 END) AS TODAY_M
+					FROM	tm_wrq_mst CA
+							INNER JOIN tn_wrq_prgr_stp CB ON CA.WRQ_ID = CB.WRQ_ID
+							INNER JOIN tm_ofc_mst CC ON CA.OFC_ID = CC.OFC_ID
+					WHERE	CA.DLT_POA = 'N'
+						AND CB.REQ_PRGR_WRK_DTT &gt;= DATE_FORMAT(CONCAT(DATE_FORMAT(NOW() - INTERVAL 1 DAY,'%Y%m%d'), '000000'), '%Y%m%d%H%i%s')
+						AND CB.REQ_PRGR_WRK_DTT &lt;= DATE_FORMAT(CONCAT(DATE_FORMAT(NOW(),'%Y%m%d'), '235959'), '%Y%m%d%H%i%s')
+						AND NOT EXISTS (
+									SELECT	1
+									FROM	(
+												SELECT	AA.WRQ_ID
+												FROM	tn_wrq_prgr_stp AA
+												WHERE	AA.REQ_PRGR_WRK_DTT &gt;= DATE_FORMAT(CONCAT(DATE_FORMAT(NOW() - INTERVAL 1 DAY,'%Y%m%d'), '000000'), '%Y%m%d%H%i%s')
+													AND AA.REQ_PRGR_WRK_DTT &lt;= DATE_FORMAT(CONCAT(DATE_FORMAT(NOW(),'%Y%m%d'), '235959'), '%Y%m%d%H%i%s')
+													AND AA.PRGR_STP_DVS_COD = 'Z'
+											) BA
+									WHERE	BA.WRQ_ID = CA.WRQ_ID
+							)
+						<choose>
+							<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'M'.toString())">
+								AND 1 = 1
+							</when>
+							<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'A'.toString())">
+								AND (CC.TRP_DVS_ID = #{ofcId} OR CC.OFC_ID = #{ofcId})
+							</when>
+							<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'H'.toString())">
+								AND CC.OFC_ID = #{ofcId}
+							</when>
+							<otherwise>
+								AND 1=2
+							</otherwise>
+						</choose>
+					GROUP BY CB.PRGR_STP_DVS_COD
+				) DB ON DA.DTL_COD = DB.PRGR_STP_DVS_COD
+		WHERE	DA.GRP_COD = 'PRGR_STP_DVS_COD'
+			AND DA.DTL_COD NOT IN ('A','Z')
+		ORDER BY DA.ODR ASC
+	</select>
+	
+	
+	<!-- 의뢰 및 작업 진행 현황 - 금일 신규 비교 -->
+	<select id="selectPrgrStatToday" resultType="hashMap">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.listPrgrStatToday */
+		SELECT	DATE_FORMAT(#{todate}, '%Y.%m.%d') AS TODAY
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.REQ_YM = DATE_FORMAT(#{todate}, '%Y%m') THEN 1 ELSE 0 END) AS D_MON_TOT
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.REQ_YM = DATE_FORMAT(#{todate}, '%Y%m') AND EA.ROW_NUM = 1  THEN 1 ELSE 0 END) AS D_MON_NEW
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.REQ_DT = #{todate} THEN 1 ELSE 0 END) AS D_TODAY_TOT
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.REQ_DT = #{todate} AND EA.ROW_NUM = 1  THEN 1 ELSE 0 END) AS D_TODAY_NEW
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.REQ_YM = DATE_FORMAT(#{todate}, '%Y%m') THEN 1 ELSE 0 END) AS M_MON_TOT
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.REQ_YM = DATE_FORMAT(#{todate}, '%Y%m') AND EA.ROW_NUM = 1  THEN 1 ELSE 0 END) AS M_MON_NEW
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.REQ_DT = #{todate} THEN 1 ELSE 0 END) AS M_TODAY_TOT
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.REQ_DT = #{todate} AND EA.ROW_NUM = 1  THEN 1 ELSE 0 END) AS M_TODAY_NEW
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.PRGR_STP_DVS_COD = 'B' THEN 1 ELSE 0 END) AS DB_TOT
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.PRGR_STP_DVS_COD = 'B' AND EA.REQ_PRGR_WRK_DT = #{todate} THEN 1 ELSE 0 END) AS DB_TODAY
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.PRGR_STP_DVS_COD = 'B' AND EA.DLVR_SCDU_CNT &lt;= 3  THEN 1 ELSE 0 END) AS DB_ALM
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.PRGR_STP_DVS_COD = 'C' THEN 1 ELSE 0 END) AS DC_TOT
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.PRGR_STP_DVS_COD = 'C' AND EA.REQ_PRGR_WRK_DT = #{todate} THEN 1 ELSE 0 END) AS DC_TODAY
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.PRGR_STP_DVS_COD = 'C' AND EA.DLVR_SCDU_CNT &lt;= 3 THEN 1 ELSE 0 END) AS DC_ALM
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.PRGR_STP_DVS_COD = 'D' THEN 1 ELSE 0 END) AS DD_TOT
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.PRGR_STP_DVS_COD = 'D' AND EA.REQ_PRGR_WRK_DT = #{todate} THEN 1 ELSE 0 END) AS DD_TODAY
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.PRGR_STP_DVS_COD = 'B' THEN 1 ELSE 0 END) AS MB_TOT
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.PRGR_STP_DVS_COD = 'B' AND EA.REQ_PRGR_WRK_DT = #{todate} THEN 1 ELSE 0 END) AS MB_TODAY
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.PRGR_STP_DVS_COD = 'B' AND EA.DLVR_SCDU_CNT &lt;= 3 THEN 1 ELSE 0 END) AS MB_ALM
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.PRGR_STP_DVS_COD = 'C' THEN 1 ELSE 0 END) AS MC_TOT
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.PRGR_STP_DVS_COD = 'C' AND EA.REQ_PRGR_WRK_DT = #{todate} THEN 1 ELSE 0 END) AS MC_TODAY
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.PRGR_STP_DVS_COD = 'C' AND EA.DLVR_SCDU_CNT &lt;= 3 THEN 1 ELSE 0 END) AS MC_ALM
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.PRGR_STP_DVS_COD = 'D' THEN 1 ELSE 0 END) AS MD_TOT
+			,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.PRGR_STP_DVS_COD = 'D' AND EA.REQ_PRGR_WRK_DT = #{todate} THEN 1 ELSE 0 END) AS MD_TODAY
+		FROM	(
+					SELECT	DA.WRQ_ID
+						,	DA.PRGR_STP_DVS_COD
+						,	DA.REQ_DT
+						,	DA.REQ_YM
+						,	DA.DLVR_SCDU_CNT
+						,	DA.REQ_PRGR_WRK_DT
+						,	DA.REQ_PRGR_WRK_YM
+						,	(CASE WHEN @V_PTET_ID = DA.PTET_ID AND @V_WRQ_DVS_COD = DA.WRQ_DVS_COD THEN @V_ROW_NUM := @V_ROW_NUM + 1 ELSE @V_ROW_NUM := 1 END) AS ROW_NUM
+						,	(@V_PTET_ID := DA.PTET_ID) AS PTET_ID
+						,	(@V_WRQ_DVS_COD := DA.WRQ_DVS_COD) AS WRQ_DVS_COD
+					FROM	(
+								SELECT	CA.WRQ_ID
+									,	CA.PTET_ID
+									,	CA.WRQ_DVS_COD
+									,	DATE_FORMAT(CA.REQ_DTT, '%Y%m%d') AS REQ_DT
+									,	DATE_FORMAT(CA.REQ_DTT, '%Y%m') AS REQ_YM
+									,	(TO_DAYS(CA.DLVR_SCDU_DT) - TO_DAYS(#{todate})) AS DLVR_SCDU_CNT
+									,	CB.PRGR_STP_DVS_COD
+									,	CB.REQ_PRGR_WRK_DT
+									,	CB.REQ_PRGR_WRK_YM
+								FROM	tm_wrq_mst CA
+										INNER JOIN (
+												SELECT	BA.WRQ_ID
+													,	BA.PRGR_STP_DVS_COD
+													,	DATE_FORMAT(REQ_PRGR_WRK_DTT, '%Y%m%d') AS REQ_PRGR_WRK_DT
+													,	DATE_FORMAT(REQ_PRGR_WRK_DTT, '%Y%m') AS REQ_PRGR_WRK_YM
+												FROM	(
+															SELECT	AA.WRQ_ID, AA.PRGR_STP_DVS_COD, REQ_PRGR_WRK_DTT
+															FROM	(
+																		SELECT	WRQ_ID, PRGR_STP_DVS_COD, REQ_PRGR_WRK_DTT
+																		FROM	tn_wrq_prgr_stp
+																		ORDER BY WRQ_ID ASC, SNM DESC
+																	) AA
+															GROUP BY AA.WRQ_ID
+														) BA
+												WHERE	BA.PRGR_STP_DVS_COD NOT IN ('A', 'Z')
+										) CB ON CA.WRQ_ID = CB.WRQ_ID
+										INNER JOIN tm_ofc_mst CC ON CA.OFC_ID = CC.OFC_ID
+								WHERE	CA.DLT_POA = 'N'
+									AND CA.OFC_ID != 'OH170005'
+									AND NOT EXISTS (
+											SELECT	1
+											FROM	tm_ptet_mst BA
+											WHERE	BA.PTET_ID = CA.PTET_ID
+												AND	BA.DLT_POA = 'Y'
+										)
+								<choose>
+									<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'M'.toString())">
+										AND 1 = 1
+									</when>
+									<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'A'.toString())">
+										AND (CC.TRP_DVS_ID = #{ofcId} OR CC.OFC_ID = #{ofcId})
+									</when>
+									<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'H'.toString())">
+										AND CC.OFC_ID = #{ofcId}
+									</when>
+									<otherwise>
+										AND 1=2
+									</otherwise>
+								</choose>
+								ORDER BY CA.PTET_ID ASC, CA.WRQ_DVS_COD, CA.WRQ_ID ASC
+							) DA
+						,	(SELECT @V_PTET_ID:='', @V_WRQ_DVS_COD:='',@V_ROW_NUM:=1) V_TMP
+				) EA
+	</select>
+	
+	<!-- 공지사항 -->
+	<select id="listWrqOdrStatMonth" resultType="hashMap">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.listWrqOdrStatMonth */
+		SELECT	FA.YM
+			,	IFNULL(FB.DA, 0) AS DA
+			,	IFNULL(FB.DN, 0) AS DN
+			,	IFNULL(FB.MA, 0) AS MA
+			,	IFNULL(FB.MN, 0) AS MN
+		FROM	(
+					SELECT	 DATE_FORMAT(DATE_ADD(#{today}, INTERVAL -5 MONTH), '%Y.%m') AS YM
+					UNION ALL
+					SELECT	 DATE_FORMAT(DATE_ADD(#{today}, INTERVAL -4 MONTH), '%Y.%m') AS YM
+					UNION ALL
+					SELECT	 DATE_FORMAT(DATE_ADD(#{today}, INTERVAL -3 MONTH), '%Y.%m') AS YM
+					UNION ALL
+					SELECT	 DATE_FORMAT(DATE_ADD(#{today}, INTERVAL -2 MONTH), '%Y.%m') AS YM
+					UNION ALL
+					SELECT	 DATE_FORMAT(DATE_ADD(#{today}, INTERVAL -1 MONTH), '%Y.%m') AS YM
+					UNION ALL
+					SELECT	 DATE_FORMAT(#{today}, '%Y.%m') AS YM
+				) FA
+				LEFT OUTER JOIN (
+					SELECT	DATE_FORMAT(REQ_YM, '%Y.%m') AS REQ_YM
+						,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.ROW_NUM &gt; 1 THEN 1 ELSE 0 END) AS DA
+						,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'D' AND EA.ROW_NUM = 1 THEN 1 ELSE 0 END) AS DN
+						,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.ROW_NUM &gt; 1 THEN 1 ELSE 0 END) AS MA
+						,	SUM(CASE WHEN EA.WRQ_DVS_COD = 'M' AND EA.ROW_NUM = 1 THEN 1 ELSE 0 END) AS MN
+					FROM	(
+								SELECT	DA.REQ_YM
+                                          , DA.PTET_ID
+                                          , DA.WRQ_DVS_COD
+                                          , MAX(DA.CNT) AS ROW_NUM
+								FROM	(
+
+											SELECT	CA.PTET_ID
+												,	CA.WRQ_DVS_COD
+												,	CA.REQ_YM
+												,	CA.CNT
+											FROM	(
+														SELECT	BA.WRQ_ID
+															,	BA.PTET_ID
+															,	BA.WRQ_DVS_COD
+															,	BA.REQ_YM
+															,	BA.PRGR_STP_DVS_COD
+															,	BA.SNM
+                                                            , (
+                                                                 SELECT COUNT(AC.REQ_DTT) + 1
+                                                                   FROM	tm_wrq_mst AC INNER JOIN tn_wrq_prgr_stp AD ON AC.WRQ_ID = AD.WRQ_ID
+                                                                 WHERE AC.PTET_ID = BA.PTET_ID 
+                                                                     AND AC.WRQ_DVS_COD = BA.WRQ_DVS_COD
+                                                                     AND AC.REQ_DTT &lt;= STR_TO_DATE(BA.REQ_YM, '%Y%m%d%')
+                                                                     AND AC.DLT_POA = 'N'
+                                                                     AND AD.PRGR_STP_DVS_COD = 'B'
+                                                              ) CNT   
+														FROM	(
+																	SELECT	AA.WRQ_ID
+																		,	AA.PTET_ID
+																		,	AA.WRQ_DVS_COD
+																		,	CONCAT(DATE_FORMAT(AA.REQ_DTT, '%Y%m'),'01') AS REQ_YM
+																		,	AB.PRGR_STP_DVS_COD
+																		,	AB.SNM
+																	FROM	tm_wrq_mst AA
+																			INNER JOIN tn_wrq_prgr_stp AB ON AA.WRQ_ID = AB.WRQ_ID
+																	WHERE	AA.DLT_POA = 'N'
+																		AND AA.REQ_DTT BETWEEN STR_TO_DATE(CONCAT(DATE_FORMAT(DATE_ADD(#{today}, INTERVAL -2 YEAR), '%Y'), '0101000000'), '%Y%m%d%H%i%s')
+																		    AND STR_TO_DATE(CONCAT(DATE_FORMAT(LAST_DAY(#{today}), '%Y%m%d'), '235959'), '%Y%m%d%H%i%s')
+																		AND AA.OFC_ID != 'OH170005'
+                                                                        AND AB.PRGR_STP_DVS_COD = 'B'
+																	ORDER BY AA.WRQ_ID ASC, AB.SNM DESC
+																) BA
+													) CA
+												WHERE	CA.PRGR_STP_DVS_COD NOT IN ('A', 'Z')
+													AND NOT EXISTS (
+															SELECT	1
+															FROM	tm_ptet_mst BA
+															WHERE	BA.PTET_ID = CA.PTET_ID
+																AND	BA.DLT_POA = 'Y'
+														)
+											ORDER BY CA.PTET_ID ASC, CA.WRQ_DVS_COD, CA.WRQ_ID ASC
+										) DA
+                    GROUP BY DA.REQ_YM
+                           , DA.PTET_ID
+                           , DA.WRQ_DVS_COD
+							) EA
+					GROUP BY DATE_FORMAT(REQ_YM, '%Y.%m')
+				) FB ON FA.YM = FB.REQ_YM
+		ORDER BY FA.YM		
+	</select>
+	
+	
+
+	<!-- BBS Top 5 조회 크리스탈 클리어-->	
+	<!-- <select id="listBbsTop5" resultType="hashMap">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.listBbsTop5 */
+		SELECT	BBS_ID
+			,	CMNT_ID
+			,	TITL
+	     FROM	tn_cmnt_bbs
+		WHERE	CMNT_ID = #{cmntId}
+			AND LVL = 0
+			AND DLT_POA = 'N'
+			<choose>
+				<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'M'.toString())">
+			AND 1 = 1
+				</when>
+				<otherwise>
+			AND	(SAE_OBJ_GBN_COD = 'O'
+					OR SAE_OBJ_GBN_COD = #{(ofcDvsCod}
+					OR (SAE_OBJ_GBN_COD = 'E' AND SAE_OBJ_GBN_ID = #{ofcId}))
+				</otherwise>
+			</choose>
+		ORDER BY FST_ENLM_DTT DESC
+		LIMIT 0, 5
+	</select>
+
+ -->
+	<!-- 대시보드 공지사항 목록 조회 -->
+	<select id="listDashboardBbs" resultType="kr.kosmo.jobkorea.cmnt.model.CmntBbsModel">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.listDashboardBbs */
+		select cb.bbs_id
+		  ,cb.usr_sst_id
+		  ,cb.hir_bbs_id
+		  ,cb.sae_obj_gbn_cod
+		  ,cb.sae_obj_gbn_id
+		  ,cb.titl
+		  ,cb.lvl
+		  ,cb.vews
+		  ,date_format(cb.bbs_sat_dtt, "%Y.%m.%d") as bbs_sat_dtt
+		  ,date_format(cb.bbs_end_dtt, "%Y.%m.%d") as bbs_end_dtt
+		  ,cb.dlt_poa
+		  ,cb.pop_poa
+		  ,date_format(cb.pop_sat_dtt, "%Y.%m.%d") as pop_sat_dtt
+		  ,date_format(cb.pop_end_dtt, "%Y.%m.%d") as pop_end_dtt
+		  ,DATE_FORMAT(cb.fst_enlm_dtt,"%Y.%m.%d") AS write_date
+		  ,cb.fst_enlm_dtt
+		  ,cb.fst_rgst_sst_id
+		  ,cb.fnl_mdfd_dtt
+		  ,cb.fnl_mdfr_sst_id
+		from tn_cmnt_bbs cb
+		left outer join tm_usr_mst um
+		on cb.usr_sst_id = um.usr_sst_id
+		where 1=1
+	    and cb.pop_poa = 'Y'
+	    and cb.dlt_poa = 'N'
+	    and if(pop_sat_dtt is not null, DATE_FORMAT(NOW(), "%Y%m%d") <![CDATA[>=]]> DATE_FORMAT(pop_sat_dtt, "%Y%m%d"),1=1)
+	    and if(pop_end_dtt is not null, DATE_FORMAT(NOW(), "%Y%m%d") <![CDATA[<=]]> DATE_FORMAT(pop_end_dtt, "%Y%m%d"),1=1)
+	    <choose>
+			<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'M'.toString())">
+				
+			</when>
+			<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'A'.toString())">
+				AND (cb.sae_obj_gbn_cod = 'O'
+					OR cb.sae_obj_gbn_cod = 'A'
+					OR cb.sae_obj_gbn_id = #{ofcId}
+					OR (cb.sae_obj_gbn_cod = 'E'
+						AND um.ofc_id = #{ofcId})
+				)
+			</when>
+			<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'H'.toString())">
+				AND (cb.sae_obj_gbn_cod = 'O'
+					OR cb.sae_obj_gbn_cod = 'H'
+					OR cb.sae_obj_gbn_id = #{ofcId}
+					OR (cb.sae_obj_gbn_cod = 'E'
+						AND um.ofc_id = #{ofcId})
+				)
+			</when>
+			<otherwise>
+				AND 1=2
+			</otherwise>
+		</choose>
+		order by cb.bbs_id DESC
+		limit 10
+	</select>
+	
+	<!-- 대시보드 코멘트 목록조회 -->
+	<select id="listDashCmtInfo" resultType="kr.kosmo.jobkorea.dashboard.model.DashboardModel">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.listDashCmtInfo */
+		SELECT OPM.ptet_id
+		    , OPM.ptet_nm
+		    , CONCAT(WWM.WRQ_DVS_NM,' ',WWM.PRGR_STP_DVS_NM) AS wrq_stp_nm
+		    , OPM.ofc_psnl_id
+		    , OPM.psnl_nm
+		    , OPM.chat_num
+		    , OPM.ofc_id
+		    , OPM.ofc_nm
+		    , MC.cmt_cnt
+		FROM (SELECT PM.PTET_ID, PM.PTET_NM, PM.CHAT_NUM, OM.OFC_ID, OM.TRP_DVS_ID, OM.OFC_DVS_COD, OM.OFC_NM, OP.OFC_PSNL_ID, OP.PSNL_NM
+		                FROM tm_ptet_mst PM
+		                LEFT OUTER JOIN tm_ofc_mst OM
+		                ON OM.OFC_ID = PM.OFC_ID
+		                LEFT OUTER JOIN tn_ofc_psnl OP
+		                ON OP.OFC_PSNL_ID = PM.OFC_PSNL_ID
+		                WHERE 1=1
+    						    <choose>
+        							<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'M'.toString())">
+        								
+        							</when>
+        							<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'A'.toString())">
+        								AND OM.trp_dvs_id = #{ofcId}
+        							</when>
+        							<when test ="(ofcDvsCod != null) and (ofcDvsCod eq 'H'.toString())">
+        								AND OM.ofc_id = #{ofcId}
+        							</when>
+        							<otherwise>
+        								AND 1=2
+        							</otherwise>
+        						</choose>
+						) OPM
+		LEFT OUTER JOIN (SELECT TMC.PTET_ID, COUNT(1) AS CMT_CNT FROM tn_mak_cmt TMC WHERE FNL_MDFD_DTT >= date_add(now(), interval -7 day) GROUP BY TMC.PTET_ID ORDER BY TMC.FST_ENLM_DTT DESC ) MC
+						ON OPM.PTET_ID = MC.PTET_ID
+						LEFT OUTER JOIN (SELECT WM.PTET_ID, WM.WRQ_DVS_COD, V_GND_COD.DTL_COD_NM AS WRQ_DVS_NM, WM.PRGR_STP_DVS_COD, V_GND_COD2.DTL_COD_NM AS PRGR_STP_DVS_NM
+						                  FROM (SELECT  TWM.PTET_ID
+						                            , TWM.WRQ_ID
+						                            , TWM.WRQ_DVS_COD
+						                            , WPS.PRGR_STP_DVS_COD
+						                        FROM tm_wrq_mst TWM
+						                        INNER JOIN tn_wrq_prgr_stp WPS
+						                        ON TWM.WRQ_ID = WPS.WRQ_ID
+						                        ORDER BY TWM.PTET_ID, WPS.REQ_PRGR_WRK_DTT DESC
+						                  ) WM
+						                  LEFT OUTER JOIN 
+						                    (
+						                        SELECT  dtl_cod
+						                            ,   dtl_cod_nm
+						                        FROM    tc_comn_dtl_cod
+						                        WHERE   grp_cod = 'WRQ_DVS_COD'
+						                    ) V_GND_COD
+						                  ON WM.WRQ_DVS_COD = V_GND_COD.dtl_cod
+						                  LEFT OUTER JOIN 
+						                    (
+						                        SELECT  dtl_cod
+						                            ,   dtl_cod_nm
+						                        FROM    tc_comn_dtl_cod
+						                        WHERE   grp_cod = 'PRGR_STP_DVS_COD'
+						                    ) V_GND_COD2
+						ON WM.PRGR_STP_DVS_COD = V_GND_COD2.dtl_cod
+						GROUP BY WM.PTET_ID
+		) WWM
+		ON OPM.PTET_ID = WWM.PTET_ID
+		WHERE 1=1
+		AND MC.cmt_cnt is not null
+	</select>
+	
+	
+	<!-- 대시보드 클리어 캐시 조회 -->
+	<select id="dashClearCash" resultType="String">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.dashClearCash */
+		SELECT ifnull(MAX(CASH_AMUT),0)
+		FROM tn_ofc_cash 
+		WHERE OFC_ID = #{ofcId}
+	</select>
+	
+	<!-- 대시보드 거래처현황(비율) -->
+	<select id="listDashOfcRnd" resultType="hashMap">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.listDashOfcRnd */
+		SELECT count(1) AS all_cnt
+		      , (SELECT count(1)
+		         FROM tm_ofc_mst OM
+		         WHERE OM.OFC_DVS_COD = 'H'
+		         AND OM.DLT_POA = 'N'
+		         AND OM.TRP_DVS_ID = (SELECT TOM.OFC_ID FROM tm_ofc_mst TOM WHERE TOM.OFC_DVS_COD = 'M')
+		      ) AS MinHcnt
+		      , (SELECT count(1)
+		         FROM tm_ofc_mst OM
+		         WHERE OM.OFC_DVS_COD = 'H'
+		         AND OM.DLT_POA = 'N'
+		         AND OM.TRP_DVS_ID != (SELECT TOM.OFC_ID FROM tm_ofc_mst TOM WHERE TOM.OFC_DVS_COD = 'M')
+		      ) AS AinHcnt
+		      ,(SELECT count(1) AS agnc_cnt FROM tm_ofc_mst OM WHERE OM.OFC_DVS_COD = 'A' AND OM.DLT_POA = 'N') a_cnt
+		FROM tm_ofc_mst OM
+		WHERE OM.OFC_DVS_COD = 'H'
+		AND OM.DLT_POA = 'N'
+	</select>
+	
+	<!-- 대시보드 거래처현황(월별) -->
+	<select id="listDashOfcMonth" resultType="hashMap">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.listDashOfcMonth */
+		SELECT DATE_FORMAT(CONCAT(a.Date,'00000000'),"%Y년 %m월") AS FST_ENLM_DTT , ifnull(O.M_CNT,0) AS M_CNT, ifnull(O.A_CNT,0) AS A_CNT
+		FROM (
+		    select DATE_FORMAT(date_add(curdate(), INTERVAL - 5 year) + INTERVAL (a.a + (10 * b.a) + (100 * c.a)) MONTH,"%Y%m") as Date
+		    from (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as a
+		    cross join (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as b
+		    cross join (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as c
+		) a
+		LEFT OUTER JOIN (SELECT   DATE_FORMAT(OM.FST_ENLM_DTT, "%Y%m") AS FST_ENLM_DTT
+		                    , SUM(CASE WHEN OM.TRP_DVS_COD = 'M' THEN 1 ELSE 0 END) AS M_CNT
+		                    , SUM(CASE WHEN OM.TRP_DVS_COD = 'A' THEN 1 ELSE 0 END) AS A_CNT
+		                  FROM  ( SELECT AA.OFC_ID AS OFC_ID, AA.OFC_DVS_COD AS OFC_DVS_COD , AB.OFC_DVS_COD AS TRP_DVS_COD, AA.FST_ENLM_DTT AS FST_ENLM_DTT   FROM tm_ofc_mst AA
+		                          LEFT OUTER JOIN tm_ofc_mst AB
+		                          ON AA.TRP_DVS_ID = AB.OFC_ID
+		                          WHERE AA.OFC_DVS_COD = 'H'
+		                          AND AA.DLT_POA = 'N') OM
+		                  GROUP BY DATE_FORMAT(OM.FST_ENLM_DTT,"%Y%m")
+		) O
+		ON a.Date = O.FST_ENLM_DTT
+		where a.Date between #{preday} and #{today}
+		ORDER BY a.Date ASC
+	</select>
+	
+	<!-- 대시보드 의뢰현황(비율) -->
+	<select id="listDashWrqRnd" resultType="hashMap">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.listDashWrqRnd */
+		SELECT    
+		  IFNULL(SUM(CASE WHEN  WM.WRQ_DVS_COD ='D' THEN 1 ELSE 0 END),0) AS D_CNT
+		  ,IFNULL(SUM(CASE WHEN  WM.WRQ_DVS_COD ='M' THEN 1 ELSE 0 END),0) AS M_CNT
+		  ,IFNULL(SUM(OM.PMT_AMUT),0) AS all_cnt
+		FROM tm_wrq_mst WM
+		INNER JOIN (SELECT TWP.WRQ_ID, TWP.PRGR_STP_DVS_COD FROM (
+		                    SELECT TWPS.WRQ_ID, TWPS.PRGR_STP_DVS_COD
+		                    FROM (SELECT WRQ_ID, PRGR_STP_DVS_COD FROM tn_wrq_prgr_stp 
+		                          ORDER BY WRQ_ID ASC, SNM DESC) TWPS
+		                    GROUP BY TWPS.WRQ_ID) TWP
+		                    ) WP
+		ON WM.WRQ_ID = WP.WRQ_ID
+		              
+		LEFT OUTER JOIN ( SELECT WRQ_ID, PMT_AMUT FROM tm_odr_mst WHERE ODR_PRGR_DVS_COD = 'S') OM
+		ON WM.WRQ_ID = OM.WRQ_ID
+		WHERE WM.DLT_POA = 'N'
+		AND WP.PRGR_STP_DVS_COD != 'A'
+	</select>
+	
+	<!-- 대시보드 의뢰현황(월별) -->
+	<select id="listDashWrqMonth" resultType="hashMap">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.listDashWrqMonth */
+		SELECT DATE_FORMAT(CONCAT(a.Date,'00000000'),"%Y년 %m월") AS FST_ENLM_DTT , ifnull(O.M_CNT,0) AS M_CNT, ifnull(O.D_CNT,0) AS D_CNT
+		FROM (
+		    select DATE_FORMAT(date_add(curdate(), INTERVAL - 5 year) + INTERVAL (a.a + (10 * b.a) + (100 * c.a)) MONTH,"%Y%m") as Date
+		    from (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as a
+		    cross join (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as b
+		    cross join (select 0 as a union all select 1 union all select 2 union all select 3 union all select 4 union all select 5 union all select 6 union all select 7 union all select 8 union all select 9) as c
+		) a
+		LEFT OUTER JOIN (SELECT   DATE_FORMAT(WM.FST_ENLM_DTT, "%Y%m") AS FST_ENLM_DTT
+                      , SUM(CASE WHEN WM.WRQ_DVS_COD = 'M' THEN 1 ELSE 0 END) AS M_CNT
+                      , SUM(CASE WHEN WM.WRQ_DVS_COD = 'D' THEN 1 ELSE 0 END) AS D_CNT
+                    FROM  tm_wrq_mst WM
+                    INNER JOIN (SELECT TWP.WRQ_ID, TWP.PRGR_STP_DVS_COD, TWP.FST_ENLM_DTT FROM (
+              		                    SELECT TWPS.WRQ_ID, TWPS.PRGR_STP_DVS_COD, TWPS.FST_ENLM_DTT 
+              		                    FROM (SELECT WRQ_ID, PRGR_STP_DVS_COD,FST_ENLM_DTT FROM tn_wrq_prgr_stp 
+              		                          ORDER BY WRQ_ID ASC, SNM DESC) TWPS
+              		                    GROUP BY TWPS.WRQ_ID) TWP
+              		                    ) WP
+                    ON WM.WRQ_ID = WP.WRQ_ID
+                    WHERE WM.DLT_POA = 'N'
+              		  AND WP.PRGR_STP_DVS_COD != 'A'
+                    GROUP BY DATE_FORMAT(WM.FST_ENLM_DTT,"%Y%m")
+		) O
+		ON a.Date = O.FST_ENLM_DTT
+		where a.Date between #{wrqPreday} and #{wrqToday}
+		ORDER BY a.Date ASC
+	</select>
+	
+	<!-- 크리스탈 클리어 작업자 현황 조회 -->
+	<select id="selectMngrWorkStat" resultType="hashMap">
+		/* kr.kosmo.jobkorea.dashboard.dao.DashboardDao.selectMngrWorkStat */
+		SELECT	IFNULL(SUM(DA.B_CNT),0) AS B_CNT
+			,	IFNULL(SUM(DA.B_ALM_CNT),0) AS B_ALM_CNT
+			,	IFNULL(SUM(DA.D_CNT),0) AS D_CNT
+			,	IFNULL(SUM(DA.D_ALM_CNT),0) AS D_ALM_CNT
+			,	IFNULL(SUM(DA.M_CNT),0) AS M_CNT
+			,	IFNULL(SUM(DA.M_ALM_CNT),0) AS M_ALM_CNT
+		FROM	(
+					SELECT	0 AS B_CNT
+						,	0 AS B_ALM_CNT
+						,	IFNULL(SUM(CASE WHEN CA.WRQ_DVS_COD = 'D' THEN 1 ELSE 0 END),0) AS D_CNT
+						,	IFNULL(SUM(CASE WHEN CA.WRQ_DVS_COD = 'D' AND CA.DLVR_SCDU_CNT &lt;= 3 THEN 1 ELSE 0 END),0) AS D_ALM_CNT
+						,	IFNULL(SUM(CASE WHEN CA.WRQ_DVS_COD = 'M' THEN 1 ELSE 0 END),0) AS M_CNT
+						,	IFNULL(SUM(CASE WHEN CA.WRQ_DVS_COD = 'M' AND CA.DLVR_SCDU_CNT &lt;= 3 THEN 1 ELSE 0 END),0) AS M_ALM_CNT
+					FROM	(
+								SELECT	BA.WRQ_ID
+									,	BA.PTET_ID
+									,	BA.WRQ_DVS_COD
+									,	BA.DLVR_SCDU_CNT
+									,	BA.PRGR_STP_DVS_COD
+								FROM	(
+											SELECT	AA.WRQ_ID
+												,	AA.PTET_ID
+												,	AA.WRQ_DVS_COD
+												,	TO_DAYS(AA.DLVR_SCDU_DT) - TO_DAYS(#{today}) AS DLVR_SCDU_CNT
+												,	AB.PRGR_STP_DVS_COD
+											FROM	tm_wrq_mst AA
+													INNER JOIN tn_wrq_prgr_stp AB ON AA.WRQ_ID = AB.WRQ_ID
+													INNER JOIN tn_wrq_pscg_info AC ON AA.WRQ_ID = AC.WRQ_ID
+													INNER JOIN tm_ptet_mst AD ON AA.PTET_ID = AD.PTET_ID
+											WHERE	AA.DLT_POA = 'N'
+												AND	AA.OFC_ID != 'OH170005'
+												AND AC.PSCG_SST_ID = #{pscg_sst_id}
+												AND AD.DLT_POA = 'N'
+											ORDER BY AB.WRQ_ID ASC, AB.SNM DESC
+										) BA
+								GROUP BY BA.WRQ_ID
+							) CA
+					WHERE	CA.PRGR_STP_DVS_COD = 'C'
+					UNION ALL
+					SELECT	COUNT(1) AS B_CNT
+						,	IFNULL(SUM(CASE WHEN CA.DLVR_SCDU_CNT &lt;= 3 THEN 1 ELSE 0 END),0) AS B_ALM_CNT
+						,	0 AS D_CNT
+						,	0 AS D_ALM_CNT
+						,	0 AS M_CNT
+						,	0 AS M_ALM_CNT
+					FROM	(
+								SELECT	BA.WRQ_ID
+									,	BA.PTET_ID
+									,	BA.WRQ_DVS_COD
+									,	BA.DLVR_SCDU_CNT
+									,	BA.PRGR_STP_DVS_COD
+								FROM	(
+											SELECT	AA.WRQ_ID
+												,	AA.PTET_ID
+												,	AA.WRQ_DVS_COD
+												,	TO_DAYS(AA.DLVR_SCDU_DT) - TO_DAYS(#{today}) AS DLVR_SCDU_CNT
+												,	AB.PRGR_STP_DVS_COD
+											FROM	tm_wrq_mst AA
+													INNER JOIN tn_wrq_prgr_stp AB ON AA.WRQ_ID = AB.WRQ_ID
+													INNER JOIN tm_ptet_mst AC ON AA.PTET_ID = AC.PTET_ID
+											WHERE	AA.DLT_POA = 'N'
+												AND	AA.OFC_ID != 'OH170005'
+												AND AC.DLT_POA = 'N'
+											ORDER BY AB.WRQ_ID ASC, AB.SNM DESC
+										) BA
+								GROUP BY BA.WRQ_ID
+							) CA
+					WHERE	CA.PRGR_STP_DVS_COD = 'B'
+				) DA
+	</select>
+	
+</mapper>

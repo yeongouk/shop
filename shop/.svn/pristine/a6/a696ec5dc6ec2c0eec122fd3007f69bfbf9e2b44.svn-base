@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.stats.dao.DateFoodSaleDao">
+
+	<!-- 일자별 음식 판매 목록 조회 -->
+	<select id="dateFoodSaleList" resultType="HashMap">
+		  SELECT date_format(MU.reg_date,"%Y-%m-%d") as reg_date
+                ,MU.food_type
+                ,MU.food_id
+                ,FD.food_name
+                ,SUM(MU.order_count) as order_count
+           FROM tb_menu MU, tb_food FD
+           WHERE MU.food_id = FD.food_id
+            AND MU.food_type = FD.food_type
+           and IFNULL(MU.can_yn,'N') = 'N'
+         group by MU.reg_date
+                  ,MU.food_type
+                  ,MU.food_id
+                  ,FD.food_name
+          order by MU.food_type
+                  ,MU.food_id
+                  ,SUM(MU.order_count)
+           LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+	<!-- 일자별 음식 판매 목록 총 갯수 조회 -->
+	<select id="countDateFoodSaleList" resultType="int">
+		 select count(*) from 
+ (   SELECT MU.reg_date
+      ,MU.food_type
+      ,MU.food_id
+      ,FD.food_name
+      ,SUM(MU.order_count) as order_count
+  FROM tb_menu MU, tb_food FD
+ WHERE MU.food_id = FD.food_id
+   AND MU.food_type = FD.food_type
+   and IFNULL(MU.can_yn,'N') = 'N'
+ group by MU.reg_date
+         ,MU.food_type
+         ,MU.food_id
+         ,FD.food_name
+ order by MU.food_type
+         ,MU.food_id
+         ,SUM(MU.order_count)) sale
+	</select>
+	
+
+	
+</mapper>

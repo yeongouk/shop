@@ -1,0 +1,421 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageA.dao.ExquestionMgtDao">
+	
+	<!-- 시험문제 관리 List 조회 -->
+	<select id="selectExquestionListMgt" resultType="kr.kosmo.jobkorea.manageA.model.ExquestionMgtModel">
+			
+		SELECT
+			@rownum:=@rownum+1 AS row_num
+		  	, A.no
+			, A.title
+			, A.category
+			, A.loginID
+			, A.email
+			, A.room
+			, A.goal
+			, A.attendanceinfo
+			, A.plan
+			, COALESCE(DATE_FORMAT(A.startdate, '%Y-%m-%d'), '') AS startdate
+  			, COALESCE(DATE_FORMAT(A.enddate, '%Y-%m-%d'), '') AS enddate
+		FROM (
+			SELECT 
+				0 AS row_num
+				, tl.no
+				, tl.title
+				, tl.category
+				, tl.loginID
+				, tl.email
+			    , tl.room
+			    , tl.goal
+			    , tl.attendanceinfo
+			    , tl.plan
+			    , tl.startdate
+			    , tl.enddate
+			FROM tb_lecture tl
+			<trim prefix="WHERE" prefixOverrides="AND||OR">
+				(@rownum:=0)=0
+				AND NOW() BETWEEN tl.startdate AND tl.enddate
+				
+				<if test="keyWord != '' and keyWord != null">
+					
+					AND tl.title LIKE CONCAT('%',#{keyWord},'%')
+				
+				</if>
+			</trim>
+			    ORDER BY tl.startdate ASC) A
+		ORDER BY row_num DESC
+		LIMIT #{pageIndex}, #{pageSize}
+	
+	</select>
+	
+	<!-- 시험문제 관리 Count -->
+	<select id="exquestionListTotalCnt" resultType="int">
+		
+		SELECT 
+			COUNT(tl.no) AS tot_cnt
+		FROM tb_lecture tl
+			<trim prefix="WHERE" prefixOverrides="AND||OR">
+				(@rownum:=0)=0
+				AND NOW() BETWEEN tl.startdate AND tl.enddate
+				
+				<if test="keyWord != '' and keyWord != null">
+					
+					AND tl.title LIKE CONCAT('%',#{keyWord},'%')
+				
+				</if>
+			</trim>
+		
+	</select>
+	
+	<select id="exquestionTestList" resultType="kr.kosmo.jobkorea.manageA.model.ExquestionTestModel">
+		
+		SELECT
+		  	ALa.row_num
+		  	, ALa.title
+  			, ALa.testname
+		  	, ALa.no
+		 	, ALa.re
+		 	, CASE
+		    	WHEN ALa.re = '본시험'
+		    	THEN 'main'
+		    	ELSE 're'
+		    END AS reCode
+		  	, ALa.mainCount
+		 	, ALa.reCount
+		FROM (
+		    SELECT
+		    	@rownum:=@rownum+1 AS row_num
+		    	, AL.title
+      			, AL.testname
+		    	, AL.no
+		    	, AL.re
+		    	, AL.mainCount
+		    	, AL.reCount
+		    FROM (
+		        (SELECT
+		        	tl.title
+          			, tt.testname
+		        	, 0 AS row_num
+		        	, ttc.no
+		        	, '본시험' AS re
+		        	, COUNT(ttc.loginID) AS mainCount
+		        	, 0 AS reCount
+		        FROM tb_tcourse ttc
+		        	INNER JOIN tb_userinfo tu ON ttc.loginID = tu.loginID
+		        	INNER JOIN tb_lecture tl ON tl.no = ttc.no
+          			INNER JOIN tb_test tt ON tt.no = tl.no
+          			WHERE ( NOW() BETWEEN tl.startdate AND tl.enddate )
+		        		AND (@rownum:=0)=0
+		        	GROUP BY ttc.no )
+		        UNION ALL
+		        (SELECT
+		        	tl.title
+          			, tt.testname
+		        	, 0 AS row_num
+		        	, tta.no
+		        	, '재시험' AS re
+		        	, 0 AS mainCount
+		        	, COUNT(tta.loginID) AS reCount
+		        FROM tb_testanswer tta
+		        	INNER JOIN tb_lecture tl ON tl.no = tta.no
+          			INNER JOIN tb_test tt ON tt.no = tl.no AND tt.re = tta.re
+		        	WHERE tta.re = 'main'
+		        	GROUP BY tta.no
+		        	HAVING (IFNULL(SUM(tta.score),0) = 0 OR IFNULL(SUM(tta.score),0) <![CDATA[ < ]]> 70) ) 
+		        UNION ALL
+                (SELECT 
+                  tl.title
+                  , tt.testname
+                  , 0 AS row_num
+                  , tt.no
+                  , CASE
+	              		WHEN tt.re = 'main'
+	                    	THEN '본시험'
+	                    	ELSE '재시험'
+	              END AS re
+                  , 0 AS mainCount
+                  , 0 AS reCount
+                FROM tb_test tt
+                INNER JOIN tb_lecture tl ON tl.no = tt.no
+                GROUP BY tt.no ) 
+            )AL
+		    WHERE AL.no = #{no}
+		    ORDER BY AL.no ASC ) ALa
+		ORDER BY ALa.row_num DESC
+		LIMIT #{pageIndex}, #{pageSize}
+	
+	</select>
+	
+	<select id="exquestionTestListCnt" resultType="int">
+		
+		SELECT 
+			COUNT(AL.no)
+		FROM (
+			(SELECT
+	        	tl.title
+         		, tt.testname
+	        	, 0 AS row_num
+	        	, ttc.no
+	        	, '본시험' AS re
+	        	, COUNT(ttc.loginID) AS mainCount
+	        	, 0 AS reCount
+	        FROM tb_tcourse ttc
+	        	INNER JOIN tb_userinfo tu ON ttc.loginID = tu.loginID
+	        	INNER JOIN tb_lecture tl ON tl.no = ttc.no
+         			INNER JOIN tb_test tt ON tt.no = tl.no
+         			WHERE NOW() BETWEEN tl.startdate AND tl.enddate
+	        	GROUP BY ttc.no )
+	        UNION ALL
+	        (SELECT
+	        	tl.title
+         		, tt.testname
+	        	, 0 AS row_num
+	        	, tta.no
+	        	, '재시험' AS re
+	        	, 0 AS mainCount
+	        	, COUNT(tta.loginID) AS reCount
+	        FROM tb_testanswer tta
+	        	INNER JOIN tb_lecture tl ON tl.no = tta.no
+         			INNER JOIN tb_test tt ON tt.no = tl.no AND tt.re = tta.re
+	        	WHERE tta.re = 'main'
+	        	GROUP BY tta.no
+	        	HAVING (IFNULL(SUM(tta.score),0) = 0 OR IFNULL(SUM(tta.score),0) <![CDATA[ < ]]> 70))
+			UNION ALL
+                (SELECT 
+                  tl.title
+                  , tt.testname
+                  , 0 AS row_num
+                  , tt.no
+                  , tt.re AS re
+                  , 0 AS mainCount
+                  , 0 AS reCount
+                FROM tb_test tt
+                INNER JOIN tb_lecture tl ON tl.no = tt.no
+                ) ) AL
+		WHERE AL.no = #{no}
+		
+	</select>
+	
+	<select id="exquestionExamList" resultType="kr.kosmo.jobkorea.manageA.model.ExquestionExamListModel">
+		
+		SELECT
+			@rownum:=@rownum+1 AS row_num
+			, A.no
+			, A.re
+			, A.seq
+			, A.problem
+			, A.answer
+			, A.answer1
+			, A.answer2
+			, A.answer3
+			, A.answer4
+			, A.`point`
+		FROM (  
+			SELECT
+				0 AS row_num
+				, ttl.no
+				, ttl.re
+				, ttl.seq
+				, ttl.problem
+				, ttl.answer
+				, ttl.answer1
+				, ttl.answer2
+				, ttl.answer3
+				, ttl.answer4
+				, tt.`point`
+			FROM tb_testlist ttl
+			INNER JOIN tb_test tt ON tt.no = ttl.no AND ttl.re = tt.re
+			WHERE (@rownum:=0)=0
+				AND ttl.no = #{no}
+				AND ttl.re = #{re}
+			ORDER BY ttl.no, ttl.seq ASC ) A
+		ORDER BY row_num DESC
+		LIMIT #{pageIndex}, #{pageSize}
+	
+	</select>
+	
+	<select id="exquestionExamListCnt" resultType="int">
+		
+		SELECT
+			COUNT(A.no)
+		FROM (  
+			SELECT
+				ttl.no
+				, ttl.re
+				, ttl.seq
+				, ttl.problem
+				, ttl.answer
+				, ttl.answer1
+				, ttl.answer2
+				, ttl.answer3
+				, ttl.answer4
+				, tt.`point`
+			FROM tb_testlist ttl
+			INNER JOIN tb_test tt ON tt.no = ttl.no AND ttl.re = tt.re
+			WHERE ttl.no = #{no}
+				AND ttl.re = #{re}
+			ORDER BY ttl.no, ttl.seq ASC ) A
+		
+	</select>
+	
+	<insert id="insertExamTestList" parameterType="java.util.Map">
+		
+		INSERT INTO tb_testlist(
+  			no
+	  		, re
+	  		, seq
+	  		, problem
+	  		, answer
+	  		, answer1
+	  		, answer2
+	  		, answer3
+	  		, answer4
+	  	) VALUES(
+	    	#{no}
+	    	, #{re}
+	    	, #{seq}
+	    	, #{problem}
+	    	, #{answer}
+	    	, #{answer1}
+	    	, #{answer2}
+	    	, #{answer3}
+	    	, #{answer4}
+	  	)
+		
+	</insert>
+	
+<!-- 	<select id="examTestListCnt" resultType="int"> -->
+		
+<!-- 		SELECT -->
+<!-- 			COALESCE(MAX(ttl.seq), 0)+1 AS seqMax -->
+<!-- 		FROM tb_testlist ttl -->
+<!-- 		INNER JOIN tb_test tt ON ttl.no = tt.no AND ttl.re = tt.re -->
+<!-- 		WHERE ttl.no = #{no} -->
+<!-- 			AND ttl.re = #{re} -->
+		
+<!-- 	</select> -->
+	
+	<insert id="insertTestNm" parameterType="java.util.Map">
+		
+		<selectKey keyProperty="testMax" resultType="int" order="AFTER">
+			
+			SELECT
+				COALESCE(MAX(tt.no), 0)+1 AS testCntMax
+			FROM tb_test tt
+			
+		</selectKey>
+
+		INSERT INTO tb_test(
+			no
+			, re
+			, testname
+			, testcnt
+			, point
+		) VALUES(
+			#{no}
+			, #{re}
+			, #{testname}
+			, 0
+			, 0
+		)
+		
+	</insert>
+	
+	<update id="updateExamTest" parameterType="java.util.Map">
+		
+		UPDATE 
+			tb_test
+		SET
+			<if test="( inOrDe != null and inOrDe.equals('inOrDe'))">
+				point = #{point}	
+				, testcnt = #{seqMax}
+			</if>
+		WHERE no = #{no}
+			AND re = #{re}
+			AND testname = #{testname}
+		
+	</update>
+	
+	<update id="updateExamTestList" parameterType="java.util.Map">
+		
+		UPDATE 
+			tb_testlist
+		SET
+			no = #{no}
+	  		, re = #{re}
+	  		, seq = #{seq}
+	  		, problem = #{problem}
+	  		, answer = #{answer}
+	  		, answer1 = #{answer1}
+	  		, answer2 = #{answer2}
+	  		, answer3 = #{answer3}
+	  		, answer4 = #{answer4}
+		WHERE no = #{no}
+			AND re = #{re}
+			AND seq = #{seq}
+		
+	</update>
+	
+	<delete id="deleteExamTestList" parameterType="java.util.Map">
+		
+		DELETE 
+			FROM tb_testlist
+		WHERE no = #{no}
+			AND re = #{re}
+			AND seq = #{seq}
+		
+	</delete>
+	
+	<select id="selectLectureTitle" resultType="kr.kosmo.jobkorea.manageA.model.ExquestionLectureBoxModel">
+	
+		SELECT
+			@rownum:=@rownum+1 AS row_num
+			, A.no
+			, A.title
+			, A.category
+			, A.loginID
+			, A.email
+			, A.room
+			, A.goal
+			, A.attendanceinfo
+			, A.plan
+			, A.startdate
+			, A.enddate
+			, A.pcnt
+			, A.filename
+			, A.filepath
+			, A.filesize
+			, A.attend
+			, A.lateness
+			, A.absent
+		FROM (
+			  SELECT
+			    CAST(tl.no AS unsigned) AS no
+			    , tl.title
+			    , tl.category
+			    , tl.loginID
+			    , tl.email
+			    , tl.room
+			    , tl.goal
+			    , tl.attendanceinfo
+			    , tl.plan
+			    , tl.startdate
+			    , tl.enddate
+			    , tl.pcnt
+			    , tl.filename
+			    , tl.filepath
+			    , tl.filesize
+			    , tl.attend
+			    , tl.lateness
+			    , tl.absent
+			  FROM tb_lecture tl
+			  WHERE (@rownum:=0)=0
+			    AND NOW() BETWEEN tl.startdate AND tl.enddate
+			  ORDER BY no ASC) A
+		ORDER BY row_num DESC
+		
+	</select>
+
+</mapper>

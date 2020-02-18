@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageC.dao.ExaminationLJKDao">
+
+	<!-- 시험 목록 조회 -->
+	<select id="listExam" resultType="kr.kosmo.jobkorea.manageC.model.testLJKModel">
+		/*kr.kosmo.jobkorea.manageC.dao.ExaminationLJKDao*/
+		select no
+			  ,re
+		      ,testname
+		      ,testcnt
+		      ,point
+		   from tb_test		
+	</select>
+
+	<select id="countExamlist" resultType="int">
+		SELECT COUNT(1) FROM tb_test
+	</select>
+	
+	<select id="selectProblem" resultType="kr.kosmo.jobkorea.manageC.model.testLJKModel">
+		select tl.no
+		       ,tl.seq
+               ,tl.re
+               ,tl.problem
+               ,tl.answer1
+               ,tl.answer2
+               ,tl.answer3
+               ,tl.answer4               
+               ,ifnull(ta.answer,'') as answer
+               ,tl.answer as panswer
+               ,ta.loginID
+               ,tt.point
+               ,(
+                  select sum(score)
+                   from tb_testanswer   
+                  where no = #{no}
+                    and re = #{re}
+                    and loginID = #{loginID}  
+                ) score
+               ,(
+                  select case when ifnull(sum(score),0) = 0 then '미응시'
+                              when ifnull(sum(score),0) <![CDATA[<>]]> 0 and ifnull(sum(score),0) <![CDATA[>=]]> 60 then '합격'
+                              else '과락'
+                        end  
+                   from tb_testanswer   
+                  where no = #{no}
+                    and re = #{re}
+                    and loginID = #{loginID}  
+                ) result                
+           from tb_testlist tl left outer join tb_testanswer ta on ta.no = tl.no  and ta.re = tl.re and ta.seq = tl.seq  and ta.loginID = #{loginID} 
+                               inner join tb_test tt on tt.no = tl.no and tt.re = tl.re
+          where tl.no = #{no}
+            and tl.re = #{re}
+		order by tl.no
+		        ,tl.re
+		        ,tl.seq               
+	</select>
+	
+	<select id="countProblem" resultType="int">
+		SELECT COUNT(1) FROM tb_testlist
+	</select>
+	
+	<insert id="testReg" parameterType="Map">
+		INSERT INTO tb_testanswer(no, re, seq, loginID, answer, score)
+		VALUES(#{no}, #{re}, #{seq}, #{loginID}, #{answer}, #{score})
+	</insert>
+</mapper>

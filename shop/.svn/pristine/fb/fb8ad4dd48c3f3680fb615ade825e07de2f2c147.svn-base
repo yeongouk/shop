@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.system.dao.HoliMgrDao">
+
+	<!-- 공휴일 목록 조회 -->
+	<select id="listHoli" resultType="kr.kosmo.jobkorea.system.model.HoliMgrModel">
+		/*kr.kosmo.jobkorea.system.dao.HoliMgrDao.listHoli*/
+		SELECT cal_dt
+		,holi_poa
+		,holi_nm
+		,dow
+		,fst_enlm_dtt
+		,fst_rgst_sst_id
+		,fnl_mdfd_dtt
+		,fnl_mdfr_sst_id
+		FROM tc_comn_cal_dt
+		WHERE DATE_FORMAT(cal_dt,'%Y%m') = DATE_FORMAT(#{satDt}, "%Y%m")
+		ORDER BY cal_dt ASC;
+	</select>
+	
+	<!-- 공유일 정보 저장 -->
+	<update id="saveHoli">
+		/*kr.kosmo.jobkorea.system.dao.HoliMgrDao.saveHoli*/
+		UPDATE tc_comn_cal_dt SET
+			holi_poa = #{holi_poa}
+			, holi_nm = #{holi_nm}
+		WHERE	cal_dt = #{cal_dt}
+		AND dow not in (1,7)
+	</update>
+</mapper>

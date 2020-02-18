@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.commuD.dao.QnaDDao">
+
+	
+	
+	<!-- Q&A 게시판 리스트 뿌리기 -->
+	<select id="selectqnaList" resultType="kr.kosmo.jobkorea.commuD.model.QnaDModel" >
+		SELECT  q.wno
+			,	q.regId
+			,	q.title
+			,	q.note
+			,	q.reg_date
+			,   case when date_format(q.update_date, '%Y-%m-%d') = date_format(now(), '%Y-%m-%d') then 'y' else 'n' end as newyn
+			,   date_format(q.update_date, '%Y-%m-%d %H:%i') as update_date
+			,   q.groupWno
+			,   q.groupOrd  
+			,   q.groupLayer  
+            ,   (case u.user_type
+                 when 'D' then '강사'
+                 when 'C' then '학생'
+                 else '관리자' end )as type
+		FROM	tb_qna q , tb_userinfo u
+        where   q.regId=u.loginID
+      <if test="(title1 != null) and (!title1.equals(''))">
+          AND q.title LIKE concat('%', #{title1}, '%')
+      </if>
+      <if test="(from_date != null) and (!from_date.equals(''))">
+          AND q.update_date <![CDATA[>=]]> STR_TO_DATE(#{from_date}, '%Y-%m-%d')
+      </if>         
+      <if test="(to_date != null) and (!to_date.equals(''))">
+          AND q.update_date <![CDATA[<=]]> date_add(STR_TO_DATE(#{to_date}, '%Y-%m-%d'), INTERVAL 1 DAY)
+      </if>   
+        order by groupWno desc, groupOrd desc
+		LIMIT #{pageIndex}, #{pageSize}
+	</select>
+
+
+<!-- Q&A 게시판 수 구하기  -->	
+	<select id="selectqnaListCnt" resultType="int">
+		select count(*) as total_cnt from (select    q.wno
+												,	q.regId
+												,	q.title
+												,	q.note
+												,	q.reg_date
+												,	q.update_date
+												,   q.groupWno
+												,   q.groupOrd  
+												,   q.groupLayer 
+									            ,    (case u.user_type
+									                 when 'D' then '강사'
+									                 when 'C' then '학생'
+									                 else '관리자' end )as type
+												FROM	tb_qna q , tb_userinfo u
+										        where   q.regId=u.loginID
+										
+										      <if test="(title1 != null) and (!title1.equals(''))">
+										          AND q.title LIKE concat('%', #{title1}, '%')
+										      </if>
+										      <if test="(from_date != null) and (!from_date.equals(''))">
+										          AND q.update_date <![CDATA[>=]]> STR_TO_DATE(#{from_date}, '%Y-%m-%d')
+										      </if>         
+										      <if test="(to_date != null) and (!to_date.equals(''))">
+										          AND q.update_date <![CDATA[<=]]> date_add(STR_TO_DATE(#{to_date}, '%Y-%m-%d'), INTERVAL 1 DAY)
+										      </if>   
+												order by groupWno desc, groupOrd desc)a
+	</select>
+	
+	
+	<!-- Q&A 게시판 1건 상세정보 -->
+	<select id="detailQnAlist" resultType="kr.kosmo.jobkorea.commuD.model.QnaDModel">
+			SELECT  wno
+			      ,	regId
+			      ,	title   
+			      ,	note
+			      ,reg_date
+			      ,update_date
+			      ,groupWno
+			      ,groupOrd
+			      ,groupLayer
+		FROM	tb_qna
+		WHERE wno = #{wno}
+	</select>
+	
+	<!-- num 값  +1 하기 / 신규 저장시 사용 (최대 num값 구해서 더할거임) 
+	<select id="numPlus" resultType="int">
+	 select (IFNULL(MAX(wno),0) + 1) as wno from tb_qna
+	</select> -->
+	
+	
+	
+	<!-- Q&A 1건 추가 / 신규등록   -->
+	<insert id="insertQnA" parameterType="java.util.Map">
+        <selectKey resultType="int" keyProperty="rwno" order="BEFORE">
+            select (IFNULL(MAX(wno),0) + 1) as wno from tb_qna
+        </selectKey>  
+		insert into tb_qna ( wno, regId, title, note, reg_date, update_date, groupWno, groupOrd, groupLayer) 
+			VALUES ( #{rwno}, #{regId}, #{title}, #{note}, now(), now(), #{rwno}, 0, 0)
+	</insert>
+	
+	
+	<!--Q&A 1건 수정  -->
+	<update id="updateQnA" parameterType="java.util.Map">
+		update tb_qna
+			set title = #{title}, note = #{note} , update_date = now()
+		where wno = #{wno} 
+	</update>
+	
+	
+	<!--Q&A 1건 삭제  -->
+	<delete id="deleteQnA" parameterType="java.util.Map">
+		delete from tb_qna where wno = #{wno}
+	</delete>
+	
+	
+	
+	<!-- 답글이 삽입될 위치를 확보하기 위해 조건에 만족하는 seq를 1씩 증가시킨다. -->	
+	<update id="replyIncrement" parameterType="java.util.HashMap">
+		<![CDATA[
+			update tb_qna set groupOrd= groupOrd + 1 where groupWno = #{groupWno} and groupOrd >= #{groupOrd}
+		]]>
+	
+	</update>
+	
+		<!-- 
+		
+		groupWno  = ref
+		
+		groupOrd   = seq
+		
+		groupLayer = lev
+		
+	    -->		
+	    
+	    <!-- 답글 한 건을 저장한다. -->
+	<insert id="replyQnA" parameterType="java.util.Map">
+        <selectKey resultType="int" keyProperty="rwno" order="BEFORE">
+            select (IFNULL(MAX(wno),0) + 1) as wno from tb_qna
+        </selectKey>  
+		insert into tb_qna  ( wno, regId, title, note, reg_date, update_date, groupWno, groupOrd, groupLayer) 
+		values (#{rwno}, #{regId}, #{title}, #{note}, now(), now(), #{groupWno}, #{groupOrd}, #{groupLayer}+1)
+	
+	</insert>
+	
+   <!--  Q&A 답글달기   
+	<insert id="replyQnA" parameterType="java.util.Map">
+        <selectKey resultType="int" keyProperty="rwno" order="BEFORE">
+            select (IFNULL(MAX(wno),0) + 1) as wno from tb_qna
+        </selectKey>  
+		insert into tb_qna  ( wno, regId, title, note, reg_date, update_date, groupWno, groupOrd, groupLayer) 
+		VALUES (#{rwno}, #{regId}, concat( #{title2}, '의 re:',  (select max(qa2.groupOrd) + 1 from tb_qna qa2 where qa2.groupWno = #{groupWno}) ), #{note}, now(), now(), #{groupWno}, (select max(qa2.groupOrd) + 1 from tb_qna qa2 where qa2.groupWno = #{groupWno})  , #{groupLayer}+1)
+	</insert> -->
+	
+
+</mapper>

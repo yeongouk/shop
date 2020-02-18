@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.adm.dao.AdmProjectDao">
+	
+	<!-- 사용자 로그인 체크 -->
+	<select id="selectAdmList" resultType="kr.kosmo.jobkorea.adm.dto.AdmProjectDTO">
+		/*kr.kosmo.jobkorea.adm.dao.AdmProjectDao.selectAdmList*/
+		
+		SELECT  pi.project_name
+				       ,pi.area
+				       ,pi.work_type
+				       ,pi.industry_type
+				       ,pi.reg_date
+				       ,pi.receive_fr_date
+				       ,pi.receive_to_date
+				       ,pi.regId
+		          from tb_project_list pi
+		            WHERE	pi.area = #{area}
+					   AND  pi.work_type = #{work_type}
+					   AND  pi.industry_type = #{industry_type}
+		
+			<!-- 	
+				SELECT  pi.project_name
+				       ,ui.area
+				       ,pi.work_type
+				       ,pi.industry_type
+				       ,pi.reg_date
+				       ,pi.receive_to_date
+				       ,pi.regId
+				  FROM 	tb_userinfo ui join tb_user_skill us
+                  on ui.loginID = us.loginID
+                  join tb_project_skill ps 
+                  on us.skill_code = ps.skill_code
+                  join tb_project_info pi
+                  on ps.projectId = pi.projectId
+			    	WHERE	ui.area = #{area}
+					AND  pi.work_type = #{work_type}
+					AND  pi.industry_type = #{industry_type} -->
+  	</select>
+  	
+	<insert id="projectSave" parameterType="kr.kosmo.jobkorea.adm.dto.AdmProjectDTO">
+	insert into 
+	tb_project_list(regId,
+	                area,
+	                project_name,
+	                work_type,
+	                industry_type,
+	                LanguageCD,
+	                WebCD,
+	                work_loc,
+	                OSCD,
+	                DBCD,
+	                NTCD,
+	                FWCD,
+	                WSCD,
+	                low,
+	                middle,
+	                high,
+	                special,
+	                work_fr_date,
+	                work_to_date,
+	                receive_fr_date,
+	                receive_to_date,
+	                reg_date,
+	                note,
+	                option_order,
+	                rdo1,
+	                rdo2,
+	                rdo3,
+	                tel,
+	                loc
+	)
+	values(        #{regId},
+	               #{area},
+	               #{project_name},
+	                #{work_type},
+	                #{industry_type},
+	                #{LanguageCD},
+	                #{WebCD},
+	                #{work_loc},
+	                #{OSCD},
+	                #{DBCD},
+	                #{NTCD},
+	                #{FWCD},
+	                #{WSCD},
+	                #{low},
+	                #{middle},
+	                #{high},  
+	                #{special},
+	                #{work_fr_date},
+	                #{work_to_date},
+	                #{receive_fr_date},
+	                #{receive_to_date},
+	                #{reg_date},
+	                #{note},
+	                #{option_order},
+	                #{rdo1},
+	                #{rdo2},
+	                #{rdo3},
+	                #{tel},
+	                #{loc}
+	)
+	
+	
+	
+	
+	</insert>
+  	
+
+  	
+
+</mapper>

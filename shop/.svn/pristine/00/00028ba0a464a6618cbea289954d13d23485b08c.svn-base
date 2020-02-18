@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.statistics.dao.SatisfactionDao">
+
+	<!-- 과락인원 목록 전체조회(그래프 출력용) -->
+	<select id="listSatisfactionForGraph" resultType="kr.kosmo.jobkorea.manageD.model.SurveyResultModel">
+				
+		SELECT	@rownum:=@rownum+1 as row_num
+			,	l.no as grp_lec_no
+			,	l.category as grp_lec_category
+			,	l.title as grp_lec_title
+			,	lecture.tempTeacherName as grp_user_teacherName
+			,	lecture.loginID as grp_user_teacherID
+			,	DATE_FORMAT(l.startdate, '%Y-%m-%d') as grp_lec_startDate
+			,	DATE_FORMAT(l.enddate, '%Y-%m-%d') as grp_lec_endDate
+			,	ROUND(avg(cast(s.survey as unsigned)), 1) as grp_surveyAvg
+			,	count(*) as grp_surveyCount
+		FROM	tb_survey as s INNER JOIN tb_lecture as l ON s.no = l.no
+				LEFT JOIN (
+							SELECT	le.no as no, ui.name as tempTeacherName, ui.loginID
+							FROM	tb_lecture as le INNER JOIN tb_userinfo as ui
+										ON le.loginID = ui.loginID
+							GROUP BY le.no
+							) as lecture ON l.no = lecture.no
+		
+		WHERE	(@rownum:=0)=0
+		<if test="type!=null and !type.equals('') and keyword!=null and !keyword.equals('')">
+			<choose>
+				<when test="type.equals('teacherName')">
+					AND lecture.tempTeacherName like CONCAT('%', #{keyword}, '%')
+				</when>
+				<when test="type.equals('title')">
+					AND l.title like CONCAT('%', #{keyword}, '%')
+				</when>
+			</choose>
+		</if>
+		
+		GROUP BY l.no
+		
+	</select>
+	
+</mapper>

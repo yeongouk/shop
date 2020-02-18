@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.supportA.dao.AdviceMgtDao">
+
+	<!-- 그룹코드 목록 조회 -->
+	<select id="listAdviceMgt" resultType="kr.kosmo.jobkorea.supportA.model.AdviceMgtModel">
+		/*kr.kosmo.jobkorea.supportA.dao.AdviceMgtDao.listAdviceMgt*/
+		SELECT	@rownum:=@rownum+1 as row_num
+			,	no	
+			,	title
+			,	startdate
+			,	enddate
+		FROM	tb_lecture 
+		WHERE (@rownum:=0)=0
+		<if test="(title != null) and (!title.equals(''))">
+          AND title LIKE concat('%', #{title}, '%')
+        </if>	
+		ORDER BY row_num DESC
+		LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+	<!-- 그룹코드 목록 총 갯수 조회 -->
+	<select id="countListAdviceMgt" resultType="int">
+		/*kr.kosmo.jobkorea.supportA.dao.AdviceMgtDao.countListAdviceMgt*/
+		SELECT COUNT(1) AS tot_cnt FROM tb_lecture
+	</select>
+	
+
+	<!-- 상세코드 목록 조회 -->
+	<select id="listAdviceMgtDtl" resultType="kr.kosmo.jobkorea.supportA.model.AdviceMgtDtlModel">
+		/*kr.kosmo.jobkorea.supportA.dao.AdviceMgtDao.listAdviceMgtDtl*/
+		SELECT	@rownum:=@rownum+1 as row_num	
+			,	no
+			,	loginID
+			,	score
+		FROM 	tb_testanswer		
+		WHERE	(@rownum:=0)=0
+			AND no = #{no}
+		ORDER BY no ASC
+		<if test="(pageIndex != null) and (!pageIndex.equals('')) and (pageSize != null) and (!pageSize.equals(''))">
+		LIMIT #{pageIndex}, #{pageSize}
+		</if>
+	</select>
+	
+	<!-- 상세코드 목록 조회2 -->
+	<select id="listAdviceMgtDtl2" resultType="kr.kosmo.jobkorea.supportA.model.AdviceMgtDtlModel2">
+		/*kr.kosmo.jobkorea.supportA.dao.AviceMgtDao.listAdviceMgtDtl2*/
+		SELECT	@rownum:=@rownum+1 as row_num	
+			,	loginID
+			,	counsel
+			,	regId
+			,	reg_date		
+		FROM 	tb_counsel		
+		WHERE	(@rownum:=0)=0
+			AND loginID = #{loginID}
+		ORDER BY loginID ASC
+		<if test="(pageIndex != null) and (!pageIndex.equals('')) and (pageSize != null) and (!pageSize.equals(''))">
+		LIMIT #{pageIndex}, #{pageSize}
+		</if>
+	</select>
+	
+	<!-- 그룹코드 목록 총 갯수 조회 -->
+	<select id="countListAdviceMgtDtl" resultType="int">
+		/*kr.kosmo.jobkorea.supportA.dao.AdviceMgtDao.countListAdviceMgtDtl*/
+		SELECT COUNT(1) AS tot_cnt FROM tb_testanswer WHERE no = #{no} 
+	</select>
+	
+	<!-- 그룹코드 목록 총 갯수 조회22 -->
+	<select id="countListAdviceMgtDtl2" resultType="int">
+		/*kr.kosmo.jobkorea.supportA.dao.AdviceMgtDao.countListAdviceMgtDtl*/
+		SELECT COUNT(1) AS tot_cnt FROM tb_certinfo WHERE loginID = #{loginID} 
+	</select>
+	
+	
+	
+	<!-- 그룹코드 단건 조회 -->
+	<select id="selectAdviceMgtDtl" resultType="kr.kosmo.jobkorea.supportA.model.AdviceMgtDtlModel">
+		/*kr.kosmo.jobkorea.supportA.dao.AdviceMgtDao.selectAdviceMgtDtl*/
+		SELECT	no
+			,	loginID
+			,	counsel
+			,	regId
+			,	reg_date
+		FROM	tb_counsel
+		WHERE	loginID = #{loginID}
+		
+	</select>
+
+	<!-- num 값  +1 하기 / 신규 저장시 사용 (최대 num값 구해서 더할거임) -->
+	<!-- 
+	<select id="numPlusMgt1" resultType="int">
+	 select (IFNULL(MAX(seq),0) + 1) as seq from tb_counsel
+	</select> -->
+	
+	<!-- 수상내역 1건 추가 / 신규등록   -->
+	<insert id="insertAdviceMgt" parameterType="java.util.Map">
+		insert into tb_counsel (no, loginID, counsel ,regId, reg_date ) 
+			VALUES (#{no}, #{loginID}, #{counsel}, #{regId}, #{reg_date} )
+	</insert>
+	
+	<!--수상내역 1건 수정  -->
+	<update id="updateAdviceMgt" parameterType="java.util.Map">
+		update tb_counsel
+			set counsel = #{counsel} 
+		where loginID = #{loginID}
+	</update>
+	
+	<!-- 수상내역 1건 삭제  -->
+	<delete id="deleteAdviceMgt" parameterType="java.util.Map">
+		delete from tb_counsel where no = #{no}
+	</delete>
+	
+</mapper>

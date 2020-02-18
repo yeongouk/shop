@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageD.dao.HomeworkrDao">
+	
+	<select id="listHomework" resultType="kr.kosmo.jobkorea.manageD.model.HomeworkModel">
+		SELECT no 
+			,  seq 
+			,  loginID 
+			,  nt_title 
+			,  nt_note 
+			,  filename 
+			,  filepath 
+			,  filesize 
+			,  reg_date
+			
+		  FROM tb_task
+		  
+		 WHERE 1 = 1 
+		  <if test="(nt_title != null) and (!nt_title.equals(''))">
+		 	AND nt_title LIKE concat('%', #{nt_title}, '%')
+		 </if>	
+	     <if test="(loginID != null) and (!loginID.equals(''))">
+	     	AND loginID LIKE concat('%', #{loginID}, '%')
+	     </if>  
+	     ORDER BY seq DESC
+	     LIMIT #{pageIndex}, #{pageSize} 
+	</select>
+
+	<select id="countListHomework" resultType="int">
+		SELECT COUNT(1) FROM tb_task
+	</select>			
+	
+	<!-- Q&A 게시판 1건 상세정보 -->
+	<select id="selectHomeworkDtl" resultType="kr.kosmo.jobkorea.manageD.model.HomeworkModel">
+			SELECT no
+			, seq
+			, loginID
+			, nt_title
+			, nt_note
+			, filename
+			, filepath
+			, filesize 
+			
+			FROM tb_task 
+			
+			where no = #{no}
+			AND	  seq =#{seq}	
+			
+	</select>
+	
+	<select id="numPlus" resultType="int">
+	 select (IFNULL(MAX(no),0) + 1) as no from tb_task
+	</select>
+	
+	<select id="documentDown" resultType="kr.kosmo.jobkorea.manageD.model.HomeworkModel">
+	
+		SELECT filename
+			,  filepath
+			
+		FROM tb_task
+		
+		where no = #{no}
+		AND	  seq =#{seq}	
+	</select>
+	
+</mapper>

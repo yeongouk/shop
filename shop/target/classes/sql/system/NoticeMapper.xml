@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.system.dao.NoticeDao">
+
+	<!-- 공지 사항 수 구하기  -->
+	<select id="noticeTotalCnt" resultType="int">
+		select count(*) as total_cnt from tb_notice
+		
+	</select>
+	
+	<!-- 공지 사항 리스트 뿌리기 -->
+	<select id="selectNoticeList" resultType="kr.kosmo.jobkorea.system.model.NoticeModel">
+		SELECT @num:=@num+1 as nt_no2
+		    ,   nt_no
+		    ,   nt_title
+			,	nt_note
+			,	write_date
+			,   loginID
+		FROM	tb_notice
+		 WHERE (@num:=#{pageIndex})=#{pageIndex}
+      <if test="(title != null) and (!title.equals(''))">
+          AND nt_title LIKE concat('%', #{title}, '%')
+      </if>
+      <if test="(from_date != null) and (!from_date.equals(''))">
+          AND write_date <![CDATA[>=]]> STR_TO_DATE(#{from_date}, '%Y-%m-%d')
+      </if>         
+      <if test="(to_date != null) and (!to_date.equals(''))">
+          AND write_date <![CDATA[<=]]> STR_TO_DATE(#{to_date}, '%Y-%m-%d')
+      </if>   
+		ORDER BY write_date DESC
+		LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+	
+	
+	<!-- 공지사항 1건 상세정보 -->
+	<select id="detailNotice" resultType="kr.kosmo.jobkorea.system.model.NoticeModel">
+		select nt_no
+			 , loginID
+			 , nt_title
+			 , nt_note
+			from tb_notice 
+			where nt_no = #{nt_no}
+	</select>
+	
+    <!-- num 값  +1 하기 / 신규 저장시 사용 (최대 num값 구해서 더할거임) -->
+	<select id="numPlus" resultType="int">
+	 select (IFNULL(MAX(nt_no),0) + 1) as nt_no from tb_notice
+	</select>
+	
+	<!-- 공지사항 1건 추가 / 신규등록   -->
+	<insert id="insertNotice" parameterType="java.util.Map">
+		insert into tb_notice (nt_no, loginID, nt_title, nt_note , write_date ) 
+			VALUES (#{nt_no}, #{loginID}, #{nt_title}, #{nt_note} , now())
+	</insert>
+	
+	<!--공지사항 1건 수정  -->
+	<update id="updateNotice" parameterType="java.util.Map">
+		update tb_notice
+			set nt_title = #{nt_title}, nt_note = #{nt_note}, write_date=now()
+		where nt_no = #{nt_no}
+	</update>
+	
+	<!-- 공지사항 1건 삭제  -->
+	<delete id="deleteNotice" parameterType="java.util.Map">
+		delete from tb_notice where nt_no = #{nt_no}
+	</delete>
+
+</mapper>

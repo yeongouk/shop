@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.order.dao.OrderDao">
+
+	<!-- 그룹코드 목록 조회 -->
+	<select id="listComnGrpCod" resultType="kr.kosmo.jobkorea.order.model.OrderModel">
+		/*kr.kosmo.jobkorea.order.dao.ComnCodDao.listComnGrpCod*/
+		SELECT	 @rownum:=@rownum+1 as row_num 
+			,	food_id
+			, 	food_type
+			, 	food_type2			
+			,	food_name 
+			,	sale_price 
+		FROM	tb_food
+		WHERE (@rownum:=0)=0		
+		<if test="type!=null and !type.equals('')">
+              AND food_type2 = #{type}
+            </if>
+            <if test="keyword!=null and !keyword.equals('')">
+              AND food_name like CONCAT('%',#{keyword},'%')
+            </if>
+		
+		ORDER BY CAST(food_id AS signed integer) DESC	
+	   LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+	<!-- 그룹코드 목록 총 갯수 조회 -->
+	<select id="countListComnGrpCod" resultType="int">
+		/*kr.kosmo.jobkorea.system.dao.ComnCodDao.countListComnGrpCod*/
+		SELECT COUNT(1) AS tot_cnt FROM tb_food
+	</select>
+	
+	<!-- 그룹코드 단건 조회 -->
+	<select id="selectComnGrpCod" resultType="kr.kosmo.jobkorea.order.model.OrderModel">
+		/*kr.kosmo.jobkorea.order.dao.ComnCodDao.selectComnGrpCod*/
+		SELECT	
+				food_id		
+			,	food_type2 as food_type
+			,	food_name 
+			,	sale_price 			 
+		FROM	tb_food
+		WHERE	food_id = #{food_id}
+	</select>
+		
+	
+
+	<!-- 상세코드 목록 조회 -->
+	<select id="listComnDtlCod" resultType="kr.kosmo.jobkorea.order.model.OrderDModel">
+		/*kr.kosmo.jobkorea.system.dao.ComnCodDao.listComnDtlCod*/
+		SELECT	@rownum:=@rownum+1 as row_num	
+				,food_id
+				,food_type
+				,food_type2
+				,food_name
+				,sale_price
+  			   from tb_food  
+			WHERE	(@rownum:=0)=0
+			And food_id=#{food_id};
+					
+		<if test="(pageIndex != null) and (!pageIndex.equals('')) and (pageSize != null) and (!pageSize.equals(''))">
+		LIMIT #{pageIndex}, #{pageSize}
+		</if>
+	</select>
+	
+	<!-- 그룹코드 목록 총 갯수 조회 -->
+	<select id="countListComnDtlCod" resultType="int">
+		/*kr.kosmo.jobkorea.order.dao.ComnCodDao.countListComnDtlCod*/
+		SELECT COUNT(1) AS tot_cnt FROM tb_food WHERE food_id = #{food_id} 
+	</select>
+	
+
+	
+</mapper>

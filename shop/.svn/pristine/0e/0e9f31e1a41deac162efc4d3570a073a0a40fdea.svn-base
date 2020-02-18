@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageA.dao.LectureMgtDao">
+	
+	<!-- 수강목록 조회 -->
+	<select id="listLectureMgt" resultType="kr.kosmo.jobkorea.manageA.model.LectureMgtCodModel">
+		/*kr.kosmo.jobkorea.manageA.dao.LectureMgtDao.listLectureMgt*/
+		SELECT	DISTINCT @rownum:=@rownum+1 as row_num	
+			,	LC.no
+			,	LC.title
+			,	LC.loginID
+			,	LC.pcnt
+			,	PC.note
+		FROM    tb_lecture LC,  tb_process PC
+		WHERE (@rownum:=0)=0
+		and		LC.no = PC.no		
+        <if test="a_such == 'title'.toString()"> and LC.title like CONCAT('%', #{searchBox}, '%')</if>       
+        <if test="a_such == 'no'.toString()"> and LC.no like CONCAT('%', #{searchBox}, '%')</if> 
+        <if test="a_such == 'loginID'.toString()"> and LC.loginID like CONCAT('%', #{searchBox}, '%')</if> 
+		ORDER BY LC.no DESC
+		LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+	
+	<!-- 수강목록 총 갯수 조회 -->
+	<select id="countListLectureMgt" resultType="int">
+		/*kr.kosmo.jobkorea.manageA.dao.LectureMgtDao.countListLectureMgt*/
+		SELECT COUNT(1) AS tot_cnt FROM 
+		(SELECT	DISTINCT @rownum:=@rownum+1 as row_num	
+			,	LC.no
+			,	LC.title
+			,	LC.loginID
+			,	LC.pcnt
+			,	PC.note
+		FROM    tb_lecture LC,  tb_process PC
+		WHERE (@rownum:=0)=0
+		and		LC.no = PC.no		
+        <if test="a_such == 'title'.toString()"> and LC.title like CONCAT('%', #{searchBox}, '%')</if>       
+        <if test="a_such == 'no'.toString()"> and LC.no like CONCAT('%', #{searchBox}, '%')</if> 
+        <if test="a_such == 'loginID'.toString()"> and LC.loginID like CONCAT('%', #{searchBox}, '%')</if> 
+		ORDER BY LC.no DESC) ASS
+	</select>
+		
+	<!-- 휴학처리 -->
+	<update id="updateLectureMgt">
+		/*kr.kosmo.jobkorea.manageA.dao.LectureMgtDao.updateLectureMgt*/
+		UPDATE tb_tcourse  SET
+				restyn = 'y'
+			
+		WHERE	no = #{no}
+		and		loginID=#{loginID}
+	
+	</update>
+	
+	
+	<!-- 수상인원 조회 -->
+	<select id="listLectureMgtDtl" resultType="kr.kosmo.jobkorea.manageA.model.LectureMgtDtlCodModel">
+		/*kr.kosmo.jobkorea.manageA.dao.LectureMgtDao.listLectureMgtDtl*/
+		SELECT	@rownum:=@rownum+1 as row_num	
+			,	TC.no
+			,	TC.loginID
+			,	LC.title
+			,	LC.attend
+			,	LC.startdate
+			,	LC.enddate
+			,	TC.restyn
+		FROM 	tb_tcourse TC,tb_lecture LC			
+		WHERE	(@rownum:=0)=0
+        <!--AND TC.no = LC.no -->
+			AND TC.no = #{no}
+			AND TC.restyn = 'n'
+			AND TC.no = LC.no
+			<!-- AND TC.loginID = LC.loginID -->
+		ORDER BY TC.no ASC
+		<if test="(pageIndex != null) and (!pageIndex.equals('')) and (pageSize != null) and (!pageSize.equals(''))">
+		LIMIT #{pageIndex}, #{pageSize}
+		</if>
+	</select>
+
+	<!-- 수강목록 총 갯수 조회 -->
+		<select id="countListLectureMgtDtl" resultType="int">
+			/*kr.kosmo.jobkorea.manageA.dao.LectureMgtDao.countListLectureMgt*/
+			SELECT COUNT(1) AS tot_cnt FROM (
+			SELECT	@rownum:=@rownum+1 as row_num	
+			,	TC.no
+			,	TC.loginID
+			,	LC.title
+			,	LC.attend
+			,	LC.startdate
+			,	LC.enddate
+			,	TC.restyn
+		FROM 	tb_tcourse TC,tb_lecture LC			
+		WHERE	(@rownum:=0)=0
+        <!--AND TC.no = LC.no -->
+			AND TC.no = #{no}
+			AND TC.restyn = 'n'
+			AND TC.no = LC.no
+			<!-- AND TC.loginID = LC.loginID -->
+		ORDER BY TC.no ASC
+			)FD
+		</select>
+
+	
+
+	
+		
+	
+	
+	
+	
+	
+</mapper>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageA.dao.ExsubjectMgtDao">
+	
+	<!-- 수강목록 조회 -->
+	<select id="listExsubjectMgt" resultType="kr.kosmo.jobkorea.manageA.model.ExsubjectMgtModel">
+		/*kr.kosmo.jobkorea.manageA.dao.ExsubjectMgtDao.listExsubjectMgt*/
+		SELECT	@rownum:=@rownum+1 as row_num	
+			,	LC.title
+			,	TE.testname
+			,	TE.re
+			,	(select count(LC.loginID) from tb_test TE, tb_lecture LC where LC.no = TE.no) as pcnt
+			,	(select count(TE.re)from tb_test TE where TE.re='main') as dmd
+			,	(select count(TE.re)from tb_test TE where TE.re='re') as al
+			,	TE.no
+		FROM    tb_lecture LC,  tb_test TE
+		WHERE (@rownum:=0)=0
+		ANd		LC.no = TE.no
+        <if test="a_such == 'title'.toString()"> and LC.title like CONCAT('%', #{searchBox}, '%')</if>       
+        <if test="a_such == 'testname'.toString()"> and TE.testname like CONCAT('%', #{searchBox}, '%')</if> 
+        <if test="a_such == 'loginID'.toString()"> and LC.loginID like CONCAT('%', #{searchBox}, '%')</if> 
+		ORDER BY LC.no DESC
+		<if test="(pageIndex != null) and (!pageIndex.equals('')) and (pageSize != null) and (!pageSize.equals(''))">
+		LIMIT #{pageIndex}, #{pageSize}
+		</if>
+	</select>
+	
+	
+	<!-- 수강목록 총 갯수 조회 -->
+	<select id="countListExsubjectMgt" resultType="int">
+		/*kr.kosmo.jobkorea.manageA.dao.LectureMgtDao.countListLectureMgt*/
+		SELECT COUNT(1) AS tot_cnt FROM 
+		(SELECT	@rownum:=@rownum+1 as row_num	
+			,	LC.title
+			,	TE.testname
+			,	TE.re
+			,	(select count(LC.loginID) from tb_test TE, tb_lecture LC where LC.no = TE.no) as pcnt
+			,	(select count(TE.re)from tb_test TE where TE.re='main') as dmd
+			,	(select count(TE.re)from tb_test TE where TE.re='re') as al
+			,	TE.no
+		FROM    tb_lecture LC,  tb_test TE
+		WHERE (@rownum:=0)=0
+		ANd		LC.no = TE.no
+        <if test="a_such == 'title'.toString()"> and LC.title like CONCAT('%', #{searchBox}, '%')</if>       
+        <if test="a_such == 'testname'.toString()"> and TE.testname like CONCAT('%', #{searchBox}, '%')</if> 
+        <if test="a_such == 'loginID'.toString()"> and LC.loginID like CONCAT('%', #{searchBox}, '%')</if> 
+		ORDER BY LC.no DESC)a
+	</select>
+	<!-- 수상인원 조회 -->
+	<select id="listExsubjectMgtDtl" resultType="kr.kosmo.jobkorea.manageA.model.ExsubjectMgtDtlModel">
+		/*kr.kosmo.jobkorea.manageA.dao.ExsubjectMgtDao.listExsubjectMgtDtl*/
+		SELECT	DISTINCT @rownum:=@rownum+1 as row_num	
+			,	TS.loginID
+			,	TS.no
+			,	TS.score
+			,	TS.re					
+		FROM 	tb_testanswer TS, tb_test TE			
+		WHERE	(@rownum:=0)=0
+			AND TS.no = #{no}
+			AND TS.no = TE.no			
+			<!-- AND TC.loginID = LC.loginID -->
+		ORDER BY TS.no ASC
+		<if test="(pageIndex != null) and (!pageIndex.equals('')) and (pageSize != null) and (!pageSize.equals(''))">
+		LIMIT #{pageIndex}, #{pageSize}
+		</if>
+	</select>
+	
+	
+	<!-- 수강목록 총 갯수 조회 -->
+	<select id="countListExsubjectMgtDtl" resultType="int">
+		/*kr.kosmo.jobkorea.manageA.dao.LectureMgtDao.countListLectureMgt*/
+		SELECT COUNT(1) AS tot_cnt FROM (SELECT	DISTINCT @rownum:=@rownum+1 as row_num	
+			,	TS.loginID
+			,	TS.no
+			,	TS.score
+			,	TS.re					
+		FROM 	tb_testanswer TS, tb_test TE			
+		WHERE	(@rownum:=0)=0
+			AND TS.no = #{no}
+			AND TS.no = TE.no			
+			<!-- AND TC.loginID = LC.loginID -->
+		ORDER BY TS.no ASC)b
+	</select>
+	
+	
+
+</mapper>

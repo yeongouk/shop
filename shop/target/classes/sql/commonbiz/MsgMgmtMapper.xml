@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.commonbiz.dao.MsgMgmtDao">
+
+	<!-- 메시지 정보 단건 조회 -->
+	<select id="selectMsgInfo" resultType="kr.kosmo.jobkorea.commonbiz.model.MsgMgmtModel">
+		/* kr.kosmo.jobkorea.commonbiz.dao.MsgMgmtDao.selectMsgInfo */
+		SELECT	REPLACE(
+					REPLACE(
+						REPLACE(AA.EML_TITL, '#WRQ_DVS_COD_NM#', AB.WRQ_DVS_COD_NM)
+						, '#OFC_NM#', AB.OFC_NM)
+					, '#PTET_NM#', AB.PTET_NM
+				) AS EML_TITL 
+			,	REPLACE(
+					REPLACE(
+						REPLACE(
+							REPLACE(
+								REPLACE(AA.EML_CNTS, '#WRQ_DVS_COD_NM#', AB.WRQ_DVS_COD_NM)
+								, '#OFC_NM#', AB.OFC_NM)
+							, '#PTET_NM#', AB.PTET_NM)
+						, '#REQ_DT#', AB.REQ_DT)
+					, '#DLVR_SCDU_DT#', AB.DLVR_SCDU_DT)
+				AS EML_CNTS
+			,	AA.TO_EML_ADRS
+			,	AA.SMS_TITL
+			,	AA.SMS_CNTS
+			,	AA.TO_PNN
+			,	AA.FST_ENLM_DTT
+			,	AA.FST_RGST_SST_ID
+			,	AA.FNL_MDFD_DTT
+			,	AA.FNL_MDFR_SST_ID
+		FROM	tc_msg_mgmt AA
+			,	(
+					SELECT	BA.OFC_ID
+						,	IFNULL(BB.OFC_NM, '-') AS OFC_NM
+						,	BA.PTET_ID
+						,	IFNULL(BC.PTET_NM, '-') AS PTET_NM
+						,	BA.WRQ_DVS_COD
+						,	IFNULL(V_WRQ_DVS_COD.DTL_COD_NM, '-') AS WRQ_DVS_COD_NM
+						,	IFNULL(DATE_FORMAT(BA.REQ_DTT, '%Y.%m.%d'), '-') AS REQ_DT
+						,	IFNULL(DATE_FORMAT(BA.DLVR_SCDU_DT, '%Y.%m.%d'), '-') AS DLVR_SCDU_DT
+					FROM	tm_wrq_mst BA
+							INNER JOIN tm_ofc_mst BB ON BA.OFC_ID = BB.OFC_ID
+							INNER JOIN tm_ptet_mst BC ON BA.PTET_ID = BC.PTET_ID
+							LEFT OUTER JOIN (
+								SELECT	DTL_COD
+									,	DTL_COD_NM
+									,	ODR
+								FROM	tc_comn_dtl_cod
+								WHERE	GRP_COD = 'WRQ_DVS_COD'
+							) V_WRQ_DVS_COD ON BA.WRQ_DVS_COD = V_WRQ_DVS_COD.DTL_COD
+					WHERE	BA.WRQ_ID = #{wrq_id}
+				) AB
+		WHERE	AA.MSG_ID = #{msg_id}
+	</select>
+	
+	<!-- 메시지 정보 단건 조회 - 장치제작 완료 -->
+	<select id="selectMsgInfoPM" resultType="kr.kosmo.jobkorea.commonbiz.model.MsgMgmtModel">
+		/* kr.kosmo.jobkorea.commonbiz.dao.MsgMgmtDao.selectMsgInfoPM */
+		SELECT	REPLACE(
+					REPLACE(
+						REPLACE(AA.EML_TITL, '#WRQ_DVS_COD_NM#', AB.WRQ_DVS_COD_NM)
+						, '#OFC_NM#', AB.OFC_NM)
+					, '#PTET_NM#', AB.PTET_NM
+				) AS EML_TITL 
+			,	REPLACE(
+					REPLACE(
+						REPLACE(
+							REPLACE(
+								REPLACE(
+									REPLACE(
+										REPLACE(AA.EML_CNTS, '#WRQ_DVS_COD_NM#', AB.WRQ_DVS_COD_NM)
+										, '#OFC_NM#', AB.OFC_NM)
+									, '#PTET_NM#', AB.PTET_NM)
+								,'#DLVR_DT#', AB.DLVR_DT)
+							, '#DLVR_INFO#', AB.DLVR_INFO)
+						,'#RCVR_NM#',AB.RCVR_NM)
+					, '#CURR_INFO#', AB.CURR_INFO)
+				AS EML_CNTS
+			,	AA.TO_EML_ADRS
+			,	AA.SMS_TITL
+			,	AA.SMS_CNTS
+			,	AA.TO_PNN
+			,	AA.FST_ENLM_DTT
+			,	AA.FST_RGST_SST_ID
+			,	AA.FNL_MDFD_DTT
+			,	AA.FNL_MDFR_SST_ID
+		FROM	tc_msg_mgmt AA
+			,	(
+					SELECT	BA.OFC_ID
+						,	IFNULL(BB.OFC_NM, '-') AS OFC_NM
+						,	BA.PTET_ID
+						,	IFNULL(BC.PTET_NM, '-') AS PTET_NM
+						,	BA.WRQ_DVS_COD
+						,	IFNULL(V_WRQ_DVS_COD.DTL_COD_NM, '-') AS WRQ_DVS_COD_NM
+						,	IFNULL(DATE_FORMAT(BD.SEND_DT, '%Y.%m.%d'), '-') AS DLVR_DT
+						,	IFNULL(BE.RCVR_NM, '-') AS RCVR_NM
+						,	CONCAT(BE.ADRS, ' ', BE.DTL_ADRS) AS DLVR_INFO
+						,	IFNULL(CONCAT(V_CURR_COD.DTL_COD_NM, (CASE WHEN BD.IVC_NUM IS NULL OR BD.IVC_NUM = '' THEN '' ELSE CONCAT('(',BD.IVC_NUM,')') END)), '-') AS CURR_INFO
+					FROM	tm_odr_mst BA
+							INNER JOIN tm_ofc_mst BB ON BA.OFC_ID = BB.OFC_ID
+							INNER JOIN tm_ptet_mst BC ON BA.PTET_ID = BC.PTET_ID
+							LEFT OUTER JOIN tn_curr_info BD ON BA.ODR_ID = BD.ODR_ID
+							LEFT OUTER JOIN tn_odr_dlvr_info BE ON BA.ODR_ID = BE.ODR_ID
+							LEFT OUTER JOIN (
+								SELECT	DTL_COD
+									,	DTL_COD_NM
+									,	ODR
+								FROM	tc_comn_dtl_cod
+								WHERE	GRP_COD = 'WRQ_DVS_COD'
+							) V_WRQ_DVS_COD ON BA.WRQ_DVS_COD = V_WRQ_DVS_COD.DTL_COD
+							LEFT OUTER JOIN (
+								SELECT	DTL_COD
+									,	DTL_COD_NM
+									,	ODR
+								FROM	tc_comn_dtl_cod
+								WHERE	GRP_COD = 'CURR_COD'
+							) V_CURR_COD ON BD.CURR_COD = V_CURR_COD.DTL_COD
+					WHERE	BA.ODR_ID = #{odr_id}
+				) AB
+		WHERE	AA.MSG_ID = #{msg_id}
+	</select>
+	
+	<!-- 메시지 정보 단건 조회 - 캐시구매 무통장 입금 신청, 확인 및 결제 취소 -->
+	<select id="selectMsgInfoC_" resultType="kr.kosmo.jobkorea.commonbiz.model.MsgMgmtModel">
+		/* kr.kosmo.jobkorea.commonbiz.dao.MsgMgmtDao.selectMsgInfoC_ */
+		SELECT	REPLACE(AA.EML_TITL, '#OFC_NM#', AB.OFC_NM) AS EML_TITL 
+			,	REPLACE(
+					REPLACE(
+						REPLACE(
+							REPLACE(AA.EML_CNTS, '#OFC_NM#', AB.OFC_NM)
+							, '#PMT_QNTY#', AB.PMT_QNTY)
+						, '#DPSR_NM#', AB.DPSR_NM)
+					, '#CASH_AMUT#', AB.CASH_AMUT)
+				AS EML_CNTS
+			,	AA.TO_EML_ADRS
+			,	AA.SMS_TITL
+			,	AA.SMS_CNTS
+			,	AA.TO_PNN
+			,	AA.FST_ENLM_DTT
+			,	AA.FST_RGST_SST_ID
+			,	AA.FNL_MDFD_DTT
+			,	AA.FNL_MDFR_SST_ID
+		FROM	tc_msg_mgmt AA
+			,	(
+					SELECT	BA.OFC_ID
+						,	IFNULL(BB.OFC_NM, '-') AS OFC_NM
+						,	BC.DPSR_NM
+						,	FORMAT(BC.PMT_QNTY, 0) AS PMT_QNTY
+						,	FORMAT(IFNULL(BD.CASH_AMUT, 0) ,0) AS CASH_AMUT
+					FROM	tm_odr_mst BA
+							INNER JOIN tm_ofc_mst BB ON BA.OFC_ID = BB.OFC_ID
+							INNER JOIN tn_odr_pmt_info BC ON BA.ODR_ID = BC.ODR_ID
+							LEFT OUTER JOIN tn_ofc_cash BD ON BA.OFC_ID = BD.OFC_ID
+					WHERE	BA.ODR_ID = #{odr_id}
+						AND	BC.MOP_DVS_COD = '60'
+				) AB
+		WHERE	AA.MSG_ID = #{msg_id}
+	</select>
+	
+	
+	<!-- 메시지 정보 단건 조회 - 의뢰서 코멘트 등록 -->
+	<select id="selectMsgInfoM_" resultType="kr.kosmo.jobkorea.commonbiz.model.MsgMgmtModel">
+		/* kr.kosmo.jobkorea.commonbiz.dao.MsgMgmtDao.selectMsgInfoM_ */
+		SELECT	REPLACE(
+					REPLACE(AA.EML_TITL, '#WTR_OFC_NM#', AB.WTR_OFC_NM)
+					, '#PTET_NM#', AB.PTET_NM) 
+				AS EML_TITL 
+			,	REPLACE(
+					REPLACE(
+						REPLACE(
+							REPLACE(AA.EML_CNTS, '#WTR_OFC_NM#', AB.WTR_OFC_NM)
+							, '#PTET_NM#', AB.PTET_NM)
+						, '#OFC_NM#', AB.OFC_NM)
+					, '#WTR_NM#', AB.WTR_NM)
+				AS EML_CNTS
+			,	AA.TO_EML_ADRS
+			,	AA.SMS_TITL
+			,	AA.SMS_CNTS
+			,	AA.TO_PNN
+			,	AA.FST_ENLM_DTT
+			,	AA.FST_RGST_SST_ID
+			,	AA.FNL_MDFD_DTT
+			,	AA.FNL_MDFR_SST_ID
+		FROM	tc_msg_mgmt AA
+			,	(
+					SELECT	BB.OFC_NM AS WTR_OFC_NM
+						,	BA.WTR_NM
+						,	BC.PTET_NM
+						,	BD.OFC_NM
+					FROM	tn_mak_cmt BA
+							INNER JOIN tm_ofc_mst BB ON BA.OFC_ID = BB.OFC_ID
+							INNER JOIN tm_ptet_mst BC ON BA.PTET_ID = BC.PTET_ID
+							INNER JOIN tm_ofc_mst BD ON BC.OFC_ID = BD.OFC_ID
+					WHERE	BA.CMT_ID = #{cmt_id}
+				) AB
+		WHERE	AA.MSG_ID = #{msg_id}
+	</select>
+	
+	
+	<!-- 의뢰서 담당자 수신정보 조회 -->
+	<select id="selectToInfoWrqPscg" resultType="kr.kosmo.jobkorea.commonbiz.model.MsgMgmtModel">
+		/* kr.kosmo.jobkorea.commonbiz.dao.MsgMgmtDao.selectToInfoWrqPscg */
+		SELECT	AB.EML AS TO_EML_ADRS
+			,	CONCAT(AB.CPN_1, AB.CPN_2, AB.CPN_3) AS TO_PNN
+		FROM	tn_wrq_pscg_info AA
+				INNER JOIN tn_usr_dtl_info AB ON AA.PSCG_SST_ID = AB.USR_SST_ID
+		WHERE	AA.WRQ_ID = #{wrq_id}
+	</select>
+	
+	<!-- 오피스(병원) 담당자 수신정보 조회 -->
+	<select id="selectToInfoOfc" resultType="kr.kosmo.jobkorea.commonbiz.model.MsgMgmtModel">
+		/* kr.kosmo.jobkorea.commonbiz.dao.MsgMgmtDao.selectToInfoOfc */
+		SELECT	'' AS TO_EML_ADRS
+			,	CONCAT(AB.PNN_1, AB.PNN_2, AB.PNN_3) AS TO_PNN
+		FROM	tm_wrq_mst AA
+				INNER JOIN tn_ofc_psnl AB ON AA.OFC_PSNL_ID = AB.OFC_PSNL_ID
+		WHERE	AA.WRQ_ID = #{wrq_id}
+
+		UNION ALL
+
+		SELECT	AB.EML AS TO_EML_ADRS
+			,	CONCAT(AB.PNN_1, AB.PNN_2, AB.PNN_3) AS TO_PNN
+		FROM	tm_wrq_mst AA
+				INNER JOIN tn_ofc_mgr AB ON AA.OFC_ID = AB.OFC_ID
+		WHERE	AA.WRQ_ID = #{wrq_id}
+	</select>
+	
+	<!-- 오피스(병원) 담당자 수신정보 조회 - 클리어 캐시 -->
+	<select id="selectToInfoOfcC_" resultType="kr.kosmo.jobkorea.commonbiz.model.MsgMgmtModel">
+		/* kr.kosmo.jobkorea.commonbiz.dao.MsgMgmtDao.selectToInfoOfcC_ */
+		SELECT	AB.EML AS TO_EML_ADRS
+			,	CONCAT(AB.PNN_1, AB.PNN_2, AB.PNN_3) AS TO_PNN
+		FROM	tm_odr_mst AA
+				INNER JOIN tn_ofc_mgr AB ON AA.OFC_ID = AB.OFC_ID
+		WHERE	AA.ODR_ID = #{odr_id}
+	</select>
+	
+	
+	<!-- 코멘트 수신정보 조회 -->
+	<select id="selectToInfoOfcM_" resultType="kr.kosmo.jobkorea.commonbiz.model.MsgMgmtModel">
+		/* kr.kosmo.jobkorea.commonbiz.dao.MsgMgmtDao.selectToInfoOfcM_ */
+		SELECT	BD.EML AS TO_EML_ADRS
+			,	CONCAT(BD.CPN_1, BD.CPN_2, BD.CPN_3) AS TO_PNN
+		FROM	tn_mak_cmt BA
+				INNER JOIN tm_wrq_mst BB ON BA.PTET_ID = BB.PTET_ID
+				INNER JOIN tn_wrq_pscg_info BC ON BB.WRQ_ID = BC.WRQ_ID
+				INNER JOIN tn_usr_dtl_info BD ON BC.PSCG_SST_ID = BD.USR_SST_ID
+				INNER JOIN tm_usr_mst BE ON BD.USR_SST_ID = BE.USR_SST_ID
+		WHERE	BA.OFC_ID != BE.OFC_ID
+			AND BA.CMT_ID = #{cmt_id}
+		
+		UNION ALL
+
+		SELECT	BC.EML AS TO_EML_ADRS
+			,	CONCAT(BC.PNN_1, BC.PNN_2, BC.PNN_3) AS TO_PNN
+		FROM	tn_mak_cmt BA
+				INNER JOIN tm_ptet_mst BB ON BA.PTET_ID = BB.PTET_ID
+				INNER JOIN tn_ofc_mgr BC ON BB.OFC_ID = BC.OFC_ID
+		WHERE	BA.OFC_ID != BC.OFC_ID
+			AND BA.CMT_ID = #{cmt_id}
+
+		UNION ALL
+
+		SELECT	'' AS TO_EML_ADRS
+			,	CONCAT(BC.PNN_1, BC.PNN_2, BC.PNN_3) AS TO_PNN
+		FROM	tn_mak_cmt BA
+				INNER JOIN tm_ptet_mst BB ON BA.PTET_ID = BB.PTET_ID
+				INNER JOIN tn_ofc_psnl BC ON BB.OFC_PSNL_ID = BC.OFC_PSNL_ID
+		WHERE	BA.OFC_ID != BC.OFC_ID
+			AND BA.CMT_ID = #{cmt_id}
+
+
+	</select>
+</mapper>

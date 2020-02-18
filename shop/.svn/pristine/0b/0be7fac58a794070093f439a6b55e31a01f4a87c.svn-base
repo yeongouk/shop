@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.supportD.dao.LecturePlanDao">
+	<!--강의 계획 list  -->
+	<select id="lecturePlanList" resultType="kr.kosmo.jobkorea.supportD.model.LecturePlanModel">
+		SELECT	
+				L.no as no
+			,	L.category as category
+			,	L.title as title
+			,	U.name as name
+			,	DATE_FORMAT(L.startdate, '%Y-%m-%d') as startdate
+			,	DATE_FORMAT(L.enddate, '%Y-%m-%d') as enddate
+			,	ifnull(tco.appliedNum,0) as appliedNum
+			,	L.pcnt as pcnt
+			,	U.hp as hp
+		FROM	
+				tb_lecture L INNER JOIN tb_userinfo U
+					ON L.loginID = U.loginID
+				LEFT JOIN	
+						(
+							SELECT	tt.no as no, count(*) as appliedNum
+							FROM	tb_lecture ll LEFT JOIN tb_tcourse tt
+										ON ll.no = tt.no
+							GROUP BY tt.no
+						) as tco
+					ON l.no = tco.no
+		WHERE 	1=1
+		<if test="searchType!=null and !searchType.equals('') and keyword!=null and !keyword.equals('')">
+			<choose>
+				<when test="searchType.equals('all')">
+					AND (L.title like CONCAT('%', #{keyword}, '%') OR U.name like CONCAT('%', #{keyword}, '%'))
+				</when>
+				<when test="searchType.equals('title')">
+					AND L.title like CONCAT('%', #{keyword}, '%')
+				</when>
+				<when test="searchType.equals('name')">
+					AND U.name like CONCAT('%', #{keyword}, '%')
+				</when>
+			</choose>
+		</if>
+		<if test="from_date!=null and !from_date.equals('') and to_date!=null and !to_date.equals('')">
+			AND L.startdate <![CDATA[>=]]> STR_TO_DATE(#{from_date}, '%Y-%m-%d')
+			AND L.enddate <![CDATA[<=]]> STR_TO_DATE(#{to_date}, '%Y-%m-%d')
+		</if>
+		ORDER BY L.no
+		LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+ 	<select id="lCnt" resultType="int">
+		SELECT	count(*)
+		FROM	
+				tb_lecture L INNER JOIN tb_userinfo U
+					ON L.loginID = U.loginID
+				LEFT JOIN	
+						(
+							SELECT	tt.no as no, count(*) as appliedNum
+							FROM	tb_lecture ll LEFT JOIN tb_tcourse tt
+										ON ll.no = tt.no
+							GROUP BY tt.no
+						) as tco
+					ON l.no = tco.no
+		WHERE 	1=1
+		<if test="searchType!=null and !searchType.equals('') and keyword!=null and !keyword.equals('')">
+			<choose>
+				<when test="searchType.equals('all')">
+					AND (L.title like CONCAT('%', #{keyword}, '%') OR U.name like CONCAT('%', #{keyword}, '%'))
+				</when>
+				<when test="searchType.equals('title')">
+					AND L.title like CONCAT('%', #{keyword}, '%')
+				</when>
+				<when test="searchType.equals('name')">
+					AND U.name like CONCAT('%', #{keyword}, '%')
+				</when>
+			</choose>
+		</if>
+		<if test="from_date!=null and !from_date.equals('') and to_date!=null and !to_date.equals('')">
+			AND L.startdate <![CDATA[>=]]> STR_TO_DATE(#{from_date}, '%Y-%m-%d')
+			AND L.enddate <![CDATA[<=]]> STR_TO_DATE(#{to_date}, '%Y-%m-%d')
+		</if>
+	</select> 
+	
+	<!-- insert 할 강의 번호 추출 -->
+	<select id="findNextLectureNo" resultType="int">
+		SELECT ifnull(max(cast(no as unsigned)),0)+1 from tb_lecture
+	</select>
+	
+	<insert id="insertLecture">
+		<!-- <selectKey resultType="String" keyProperty="l_no" order="BEFORE">
+			SELECT (IFNULL(MAX(no),0)+1) as l_no from tb_lecture
+		</selectKey> -->
+		INSERT into tb_lecture (	
+								no
+							   ,title
+							   ,loginID
+							   ,category
+							   ,email
+							   ,room
+							   ,startdate
+							   ,enddate
+							   ,goal
+							   ,plan
+							   ,filename
+							   ,filepath
+							   ,filesize
+						)VALUES(
+								#{l_no}
+							   ,#{l_title}
+							   ,#{loginID}
+							   ,#{category}
+							   ,#{l_email}
+							   ,#{room_no}
+							   ,#{l_startdate}
+							   ,#{l_enddate}
+							   ,#{l_goal}
+							   ,#{l_plan}
+							   ,#{l_filename}
+							   ,#{l_filepath}
+							   ,#{l_filesize})
+	
+	</insert>
+	
+	<select id="selectOneLectureDetail" resultType="kr.kosmo.jobkorea.supportD.model.LecturePlanModel">
+		SELECT	l.no
+			,	l.title
+			,	l.loginID
+			,	u.name
+			,	l.category
+			,	l.room
+			,	l.pcnt
+			,	l.startdate
+			,	l.enddate
+			,	u.hp
+			,	l.email
+			,	l.goal
+			,	l.plan
+			,	l.filename
+			,	l.filepath
+			,	l.filesize
+		FROM	tb_lecture as l INNER JOIN tb_userinfo as u
+				ON l.loginID = u.loginID  
+		WHERE	no=#{no};
+	</select>
+	
+	<!-- 첨부파일 단건 조회 -->
+	<select id="selectLecturePlanAtmtFil" resultType="kr.kosmo.jobkorea.supportD.model.LecturePlanAtmtFilModel">
+		SELECT	no
+			,	filename 
+			,	filepath as atmt_fil_psc_fil_nm
+			,	filename as atmt_fil_lgc_fil_nm
+			,	filesize as fil_siz
+		FROM	tb_lecture
+		WHERE	no = #{no}
+	</select>
+	
+	<!--강의 계획서 수정(첨부파일 변경 없는 경우) -->
+	<update id="updateLecture" parameterType="int">
+		UPDATE	tb_lecture
+		SET		title = #{l_title}
+			,	category = #{category}
+			,	pcnt = #{pcnt}
+			,	startdate = STR_TO_DATE(#{l_startdate}, '%Y-%m-%d')
+			,	enddate = STR_TO_DATE(#{l_enddate}, '%Y-%m-%d')
+			,	email = #{l_email}
+			,	goal = #{l_goal}
+			,	plan = #{l_plan}
+		WHERE	no=#{l_no}	
+	</update>
+	
+	<!-- 강의 계획서 수정(첨부파일 변경 있는 경우) -->
+	<update id="updateLectureWithFile" parameterType="int">
+		UPDATE	tb_lecture
+		SET		title = #{l_title}
+			,	category = #{category}
+			,	pcnt = #{pcnt}
+			,	startdate = STR_TO_DATE(#{l_startdate}, '%Y-%m-%d')
+			,	enddate = STR_TO_DATE(#{l_enddate}, '%Y-%m-%d')
+			,	email = #{l_email}
+			,	goal = #{l_goal}
+			,	plan = #{l_plan}
+			,	filename = #{l_filename}
+			,	filepath = #{l_filepath}
+			,	filesize = #{l_filesize}
+		WHERE	no=#{l_no}
+	</update>
+	
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

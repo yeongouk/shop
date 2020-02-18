@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.supportD.dao.DocumentMgtDao">
+
+	<!-- 학습자료관리 목록 수 구하기  -->
+	<select id="documentTotalCnt" resultType="int">
+		select count(*) as total_cnt from 
+										( select   n.nt_no
+											     , n.nt_title
+											     , n.write_date
+											     , u.name
+									         from tb_notice n , tb_userinfo u
+									         where n.loginID = u.loginID
+											 <if test="(title != null) and (!title.equals(''))">
+									          AND nt_title LIKE concat('%', #{title}, '%')
+									         </if>
+									         <if test="(from_date != null) and (!from_date.equals(''))">
+									          AND write_date <![CDATA[>=]]> STR_TO_DATE(#{from_date}, '%Y-%m-%d')
+									         </if>         
+									         <if test="(to_date != null) and (!to_date.equals(''))">
+									          AND write_date <![CDATA[<=]]> date_add(STR_TO_DATE(#{to_date}, '%Y-%m-%d'), INTERVAL 1 DAY)
+									         </if>   )a
+		
+	</select>
+	
+	<!-- 학습자료관리 리스트 뿌리기 -->
+	<select id="documentMgtList" resultType="HashMap">
+		select n.nt_no
+		     , n.nt_title
+		     , n.write_date
+		     , u.name
+		     , n.filename
+		     , n.filesize
+		     , n.filepath
+         from tb_notice n , tb_userinfo u
+         where n.loginID = u.loginID    
+      <if test="(searchType  != null) and (!searchType .equals(''))">
+           <if test="searchType == 'title'.toString()"> and nt_title like CONCAT('%', #{searchBox}, '%')</if>       
+           <if test="searchType == 'content'.toString()"> and nt_note like CONCAT('%', #{searchBox}, '%')</if>        
+           <if test="searchType == 'user'.toString()"> and name like CONCAT('%', #{searchBox}, '%')</if> 
+      </if>
+      <if test="(from_date != null) and (!from_date.equals(''))">
+          AND write_date <![CDATA[>=]]> STR_TO_DATE(#{from_date}, '%Y-%m-%d')
+      </if>         
+      <if test="(to_date != null) and (!to_date.equals(''))">
+          AND write_date <![CDATA[<=]]> date_add(STR_TO_DATE(#{to_date}, '%Y-%m-%d'), INTERVAL 1 DAY)
+      </if>   
+		ORDER BY n.write_date DESC
+		LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+	
+	
+	<!--학습자료관리 1건 상세정보 -->
+	<select id="detailDocumentMgtList" resultType="HashMap">
+		select nt_no
+			 , nt_title
+			 , nt_note
+			 , filename
+			 , filesize
+			 , filepath
+			 , loginID
+			from tb_notice
+			where nt_no = #{nt_no}
+	</select>
+
+
+<!--     num 값  +1 하기 / 신규 저장시 사용 (최대 num값 구해서 더할거임)
+	<select id="numPlus" resultType="int">
+	 select (IFNULL(MAX(nt_no),0) + 1) as nt_no from tb_notice
+	</select> -->
+	
+	
+	<!-- 학습자료관리 1건 추가 / 신규등록   -->
+	<insert id="insertDocument" parameterType="java.util.Map">
+        <selectKey resultType="int" keyProperty="rnt_no" order="BEFORE">
+            select (IFNULL(MAX(nt_no),0) + 1) as nt_no from tb_notice
+        </selectKey>  
+		insert into tb_notice ( nt_no, loginID, nt_title, nt_note, write_date) 
+			VALUES ( #{rnt_no}, #{loginID}, #{nt_title}, #{nt_note}, now())
+	</insert>
+	
+	
+	<!--학습자료관리 1건 수정  -->
+	<update id="updateDocument" parameterType="java.util.Map">
+		update tb_notice
+			set nt_title = #{nt_title}, nt_note = #{nt_note} , write_date = now()
+		where nt_no = #{nt_no} 
+	</update>
+	
+	
+	<!--학습자료관리 1건 삭제  -->
+	<delete id="deleteDocument" parameterType="java.util.Map">
+		delete from tb_notice where nt_no = #{nt_no}
+	</delete>
+	
+	
+	
+	
+		<!-- 파일업로드 test  -->
+	<insert id="fileUplode" parameterType="java.util.Map">
+	   <selectKey resultType="int" keyProperty="rnt_no" order="BEFORE">
+            select (IFNULL(MAX(nt_no),0) + 1) as nt_no from tb_notice
+        </selectKey>  
+		insert into tb_notice ( nt_no, loginID, nt_title, nt_note, filename, filepath, filesize, write_date) 
+		VALUES ( #{rnt_no}, #{loginID}, #{nt_title}, #{nt_note}, #{filename},  #{filepath}, #{filesize}, now())
+	</insert>
+
+
+	<!--학습자료관리 1건 수정  -->
+	<update id="updateFile" parameterType="java.util.Map">
+		update tb_notice
+			set nt_title = #{nt_title}, nt_note = #{nt_note} , filename= #{filename}, filepath= #{filepath}, filesize= #{filesize} , write_date = now()
+		where nt_no = #{nt_no} 
+	</update>
+	
+	<!--학습자료관리 1건 삭제  -->
+	<delete id="deleteFile" parameterType="java.util.Map">
+		delete from tb_notice where nt_no = #{nt_no}
+	</delete>
+	
+		<!--다운로드 -->
+	<select id="documentDown" resultType="kr.kosmo.jobkorea.supportD.model.DocumentMgtModel">
+		select nt_no
+			 , nt_title
+			 , nt_note
+			 ,filename
+			 ,filepath
+			from tb_notice
+			where nt_no = #{nt_no}
+	</select>
+	
+	
+	<!-- 첨부파일 단건 조회 -->
+	<select id="selectDocumentAtmtFil" resultType="kr.kosmo.jobkorea.supportD.model.DocumentAtmtFilModel">
+		SELECT	nt_no
+			,	filename 
+			,	filepath as atmt_fil_psc_fil_nm
+			,	filepath as atmt_fil_lgc_fil_nm
+			,	filesize as fil_siz
+		FROM	tb_notice
+		WHERE	nt_no = #{nt_no}
+	</select>
+
+</mapper>

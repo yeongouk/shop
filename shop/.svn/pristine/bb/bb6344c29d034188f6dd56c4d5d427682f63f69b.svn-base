@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageF.dao.ToolinfoDAO">
+
+	
+	<!-- 장비 목록 리스트  -->
+	<select id="selectWareList" resultType="map">
+			SELECT 	room,
+					seq,
+					name,
+					size,
+					ccount,
+					etc
+			  FROM  tb_toolinfo
+			 WHERE room=#{room}
+			 LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+	<select id="cntWareInfoList" resultType="int">
+			SELECT COUNT(seq) 
+			 FROM tb_toolinfo
+			WHERE room=#{room}
+	</select>
+	
+	
+		<!--장비 목록에 강의실 등록용  -->
+	<insert id="insertWareInfo">
+		<selectKey resultType="int" keyProperty="seq" order="BEFORE">
+			SELECT (IFNULL(MAX(seq),0)+1) as seq from tb_toolinfo
+		</selectKey>
+		insert into tb_toolinfo (
+								 room,
+								 seq,
+								 name,
+								 ccount,
+								 etc
+						 )values(
+								 #{wdRoom},
+								 #{seq},
+								 #{Wname},
+								 #{Wccount},
+								 #{Wetc})
+	</insert>
+	
+	
+	<select id="readOneWare" resultType="kr.kosmo.jobkorea.manageF.model.ToolinfoModel">
+		SELECT room,
+			   name,
+			   size,
+			   ccount,
+			   etc,
+			   seq 
+		  FROM tb_toolinfo
+		 WHERE seq=#{seq}
+	</select>
+	
+	<update id="updateWareInfo" parameterType="Map">
+		UPDATE tb_toolinfo
+		   SET
+				room =  #{wdRoom},
+				name =  #{Wname},
+				ccount= #{Wccount},
+				etc   = #{Wetc}
+		 WHERE
+				seq=#{Wseq}		
+	
+	</update>
+	
+	<delete id="deleteWareInfo">
+		DELETE FROM
+					 tb_toolinfo 
+			  WHERE seq=#{Wseq}
+	</delete>
+
+
+
+</mapper>

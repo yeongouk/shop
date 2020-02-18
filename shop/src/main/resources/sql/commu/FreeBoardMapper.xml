@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.commu.dao.FreeBoardDAO">
+
+	<!-- 자유 게시판 수 구하기  -->
+	<select id="selectFreeBoardListCnt" resultType="int">
+		select count(*) as total_cnt from tb_freeboard
+		
+	</select>
+	
+	<!-- 자유 게시판 리스트 뿌리기 -->
+	<select id="selectFreeBoardList" resultType="kr.kosmo.jobkorea.commu.model.FreeBoardModel" >
+		SELECT	@num:=@num+1 as wno2	
+		    ,   wno
+			,	writer
+			,	title
+			,	content
+			,	read_cnt
+			,	reg_date
+		FROM	tb_freeboard
+		 WHERE (@num:=#{pageIndex})=#{pageIndex}
+      <if test="(title1 != null) and (!title1.equals(''))">
+          AND title LIKE concat('%', #{title1}, '%')
+      </if>
+      <if test="(from_date != null) and (!from_date.equals(''))">
+          AND reg_date <![CDATA[>=]]> STR_TO_DATE(#{from_date}, '%Y-%m-%d')
+      </if>         
+      <if test="(to_date != null) and (!to_date.equals(''))">
+          AND reg_date <![CDATA[<=]]> STR_TO_DATE(#{to_date}, '%Y-%m-%d')
+      </if>   
+		ORDER BY reg_date DESC
+		LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+	
+	
+	<!-- 자유 게시판 1건 상세정보 -->
+	<select id="detailFreeBoard" resultType="kr.kosmo.jobkorea.commu.model.FreeBoardModel">
+			SELECT	@num:=@num+1 as wno2	
+		    ,   wno
+			,	writer
+			,	title
+			,	content
+		FROM	tb_freeboard
+		WHERE wno = #{wno}
+	</select>
+	
+		<!-- 조회수 +1 하기 -->
+	<update id="addReadCnt" parameterType="java.util.Map">
+		update tb_freeboard set read_cnt = read_cnt + 1 where wno = #{wno}
+	</update>
+	
+	
+	<!-- num 값  +1 하기 / 신규 저장시 사용 (최대 num값 구해서 더할거임) -->
+	<select id="numPlus" resultType="int">
+	 select (IFNULL(MAX(wno),0) + 1) as wno from tb_freeboard
+	</select>
+	
+	<!-- 자유 게시판 1건 추가 / 신규등록   -->
+	<insert id="insertFreeBoard" parameterType="java.util.Map">
+		insert into tb_freeboard (wno, writer, title, content, reg_date) 
+			VALUES (#{wno}, #{writer}, #{title}, #{content}, now())
+	</insert>
+	
+	
+	<!-- 자유 게시판 1건 수정  -->
+	<update id="updateFreeBoard" parameterType="java.util.Map">
+		update tb_freeboard
+			set title = #{title}, content = #{content} , reg_date = now()
+		where wno = #{wno} 
+		
+	</update>
+	
+	
+	<!-- 자유 게시판 1건 삭제  -->
+	<delete id="deleteFreeBoard" parameterType="java.util.Map">
+		delete from tb_freeboard where wno = #{wno}
+	</delete>
+
+	
+
+</mapper>

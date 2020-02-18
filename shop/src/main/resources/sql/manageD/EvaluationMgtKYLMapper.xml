@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageD.dao.EvaluationMgtKYLDao">
+
+	<!-- 로그인한 강사의 강좌 목록 조회 -->
+	<select id="evaluationMgtList" resultType="kr.kosmo.jobkorea.manageD.model.EvaluationMgtKYLModel">
+		
+		select  no
+		      , title
+		      , concat(DATE_FORMAT(startdate,"%Y.%m.%d"),'~',DATE_FORMAT(enddate,"%Y.%m.%d")) as date
+        from tb_lecture
+        where loginID=#{loginID}
+          <if test="(searchType  != null) and (!searchType .equals(''))">
+          <if test="searchType == 'ing'.toString()"> and enddate <![CDATA[ >= ]]> now() </if>       
+          <if test="searchType == 'past'.toString()"> and enddate <![CDATA[ < ]]> now() </if>        
+          </if>		
+		LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+	<!--  로그인한 강사의 강좌 목록 총 갯수 조회 -->
+	<select id="evaluationMgtListCnt" resultType="int">
+		
+		SELECT count(*) as lecture_cnt from 
+		                                    (
+		                                        select  no 
+		                                              , title
+		                                              , concat(DATE_FORMAT(startdate,"%Y.%m.%d"),'~',DATE_FORMAT(enddate,"%Y.%m.%d")) as date
+                                                 from tb_lecture
+                                                 where loginID=#{loginID}
+                                                 <if test="(searchType  != null) and (!searchType .equals(''))">
+                                                 <if test="searchType == 'ing'.toString()"> and enddate <![CDATA[ >= ]]> now() </if>       
+                                                 <if test="searchType == 'past'.toString()"> and enddate <![CDATA[ < ]]> now() </if>        
+                                                 </if>		
+		                                       ) a
+	</select>
+	
+	<!--  강좌 목록 단건 조회 -->
+	<select id="selectLecture" resultType="kr.kosmo.jobkorea.manageD.model.EvaluationMgtKYLModel">
+		
+	</select>
+	
+	
+	<!-- 학생 목록 조회 -->
+	<select id="studentList" resultType="kr.kosmo.jobkorea.manageD.model.EvaluationMgtKYLModel">
+	<!--  select t.loginID 
+           , l.no
+	       ,u.name
+           ,TRUNCATE(sum(a.score), 0) as score
+      from tb_lecture l
+         , tb_tcourse t
+         , tb_userinfo u
+         , tb_testanswer a
+      where l.no = t.no
+      and t.no = a.no
+      and u.loginID = t.loginID
+      and  u.loginID = a.loginID
+      and l.no=#{no}
+      group by t.loginID 
+      
+      //////////
+       select  t.loginID 
+              ,l.no
+              ,u.name
+              ,CASE WHEN a.sumScore is null THEN '미응시' ELSE a.sumScore END as sumScore
+         from tb_lecture l inner JOIN tb_tcourse t 
+                           ON l.no = t.no
+                           LEFT OUTER JOIN tb_userinfo u
+                           ON t.loginID = u.loginID
+                           LEFT OUTER JOIN (
+                                             SELECT  no, re, loginID, sum(score) as sumScore
+                                               FROM    tb_testanswer
+                                              WHERE   re = 'main'
+                                              GROUP BY  no, re, loginID
+                                            ) a
+        ON t.no = a.no AND t.loginID = a.loginID
+        where l.no = #{no}-->
+      
+      
+      
+      
+      select  t.loginID 
+             ,l.no
+	         ,u.name
+             ,a.sumScore
+      from  tb_lecture l INNER JOIN tb_tcourse t ON l.no = t.no
+                         INNER JOIN tb_userinfo u ON t.loginID = u.loginID
+                         LEFT OUTER JOIN (
+                                           SELECT  no, re, loginID, sum(score) as sumScore
+                                           FROM    tb_testanswer
+                                           WHERE   re = 'main'
+                                           GROUP BY  no, re, loginID
+                                           ) as a
+                         ON t.no = a.no
+      WHERE l.no = #{no}
+      GROUP BY t.loginID 
+      	<if test="(pageIndex != null) and (!pageIndex.equals('')) and (pageSize != null) and (!pageSize.equals(''))">
+		LIMIT #{pageIndex}, #{pageSize}
+		</if>
+	
+	</select>
+	
+	<!--  학생목록 총 갯수 조회 -->
+	<select id="countStudentList" resultType="int">
+			SELECT count(*) as student_cnt 
+			  from 
+		             ( 
+		               select t.loginID 
+				             ,l.no
+					         ,u.name
+				             ,a.sumScore
+                       from  tb_lecture l INNER JOIN tb_tcourse t ON l.no = t.no
+                                          INNER JOIN tb_userinfo u ON t.loginID = u.loginID
+                                          LEFT OUTER JOIN (
+				                                           SELECT  no, re, loginID, sum(score) as sumScore
+				                                           FROM    tb_testanswer
+				                                           WHERE   re = 'main'
+				                                           GROUP BY  no, re, loginID
+				                                           ) as a
+                                          ON t.no = a.no
+				      WHERE l.no = #{no}
+				      GROUP BY t.loginID 
+						                ) b
+		
+		
+	</select>
+	
+	
+	<!-- 학생평가 단건 조회 -->
+	<select id="selectStudent" resultType="kr.kosmo.jobkorea.manageD.model.EvaluationMgtKYLModel">
+	        select no, loginID, evaluation
+            from tb_tcourse
+            where no = #{no}
+            and loginID = #{loginID}
+	</select>	
+	
+	
+	<!-- 학생 평가내용 저장 INSERT -->
+	<update id="insertEvaluation">
+         update tb_tcourse
+         set evaluation = #{st_evaluation}
+          where no =  #{tmpNo}
+          and loginID = #{tmpLoginID};
+	</update>
+	
+	
+	<!-- 학생 평가내용 수정  UPDATE -->
+	<update id="updateEvaluation" parameterType="java.util.Map">
+         update tb_tcourse
+         set evaluation = #{st_evaluation}
+          where no =  #{tmpNo}
+          and loginID = #{tmpLoginID};
+	</update>
+	
+	<!-- 평가내용만 1건 delete -->
+	<update id="deleteEvaluation" parameterType="java.util.Map">
+         update tb_tcourse
+         set evaluation = #{""}
+          where no =  #{tmpNo}
+          and loginID = #{tmpLoginID};
+	</update>
+	
+	
+
+
+	
+</mapper>

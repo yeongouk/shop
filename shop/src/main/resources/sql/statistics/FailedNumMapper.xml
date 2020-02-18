@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.statistics.dao.FailedNumDao">
+
+	<!-- 과락인원 목록 조회 -->
+	<select id="listFailedNum" resultType="kr.kosmo.jobkorea.statistics.model.FailedNumModel">
+		/*kr.kosmo.jobkorea.statistics.dao.FailedNumDao.listFailedNum*/
+		
+		SELECT	l.no
+			,	l.title
+			,	DATE_FORMAT(l.startdate, '%Y-%m-%d') as startdate
+			,	DATE_FORMAT(l.enddate, '%Y-%m-%d') as enddate
+			,	ifnull(table01.targetNum,0) as targetNum
+			,	ifnull(table03.failedNum,0) as failedNum
+		FROM	tb_lecture as l LEFT OUTER JOIN tb_tcourse as t
+					ON l.no = t.no
+				LEFT OUTER JOIN (
+									SELECT	no, count(*) as targetNum
+									FROM	tb_tcourse
+									GROUP BY no
+								) as table01
+					ON l.no = table01.no
+				LEFT OUTER JOIN	(
+									SELECT	no, count(*) as failedNum
+									FROM	(
+												SELECT	no, re, loginID, sum(score) as totalScore
+												FROM	tb_testanswer
+												GROUP BY no, re, loginID
+												HAVING	re = 'main' AND sum(score) <![CDATA[<]]> 60
+											) as table02
+									GROUP BY no
+								) as table03
+					ON t.no = table03.no
+		WHERE	1=1
+		<if test="startDate!=null and !startDate.equals('')">
+			AND l.startdate <![CDATA[>=]]> STR_TO_DATE(#{startDate}, '%Y-%m-%d')
+		</if>
+		<if test="endDate!=null and !endDate.equals('')">
+			AND l.enddate <![CDATA[<=]]> STR_TO_DATE(#{endDate}, '%Y-%m-%d')
+		</if>
+		GROUP BY l.no
+		ORDER BY startdate ASC
+		LIMIT #{pageIndex}, #{pageSize}
+		
+		/*
+		과정번호	l.no
+		과정명		l.title
+		시작일		l.startdate
+		종료일		l.enddate
+		대상자수	tartgetNum
+		과락수		failedNum
+		*/
+	</select>
+	
+	<!-- 과락인원 목록 총 갯수 조회 -->
+	<select id="countListFailedNum" resultType="int">
+		/*kr.kosmo.jobkorea.statistics.dao.FailedNumDao.countListFailedNum*/
+		SELECT	count(*)
+		FROM	(
+					SELECT	l.no
+						,	l.title
+						,	DATE_FORMAT(l.startdate, '%Y-%m-%d') as startdate
+						,	DATE_FORMAT(l.enddate, '%Y-%m-%d') as enddate
+						,	ifnull(table01.targetNum,0) as targetNum
+						,	ifnull(table03.failedNum,0) as failedNum
+					FROM	tb_lecture as l LEFT OUTER JOIN tb_tcourse as t
+								ON l.no = t.no
+							LEFT OUTER JOIN (
+												SELECT	no, count(*) as targetNum
+												FROM	tb_tcourse
+												GROUP BY no
+											) as table01
+								ON l.no = table01.no
+							LEFT OUTER JOIN	(
+												SELECT	no, count(*) as failedNum
+												FROM	(
+															SELECT	no, re, loginID, sum(score) as totalScore
+															FROM	tb_testanswer
+															GROUP BY no, re, loginID
+															HAVING	re = 'main' AND sum(score) <![CDATA[<]]> 60
+														) as table02
+												GROUP BY no
+											) as table03
+								ON t.no = table03.no
+					WHERE	1=1
+					<if test="startDate!=null and !startDate.equals('')">
+						AND l.startdate <![CDATA[>=]]> STR_TO_DATE(#{startDate}, '%Y-%m-%d')
+					</if>
+					<if test="endDate!=null and !endDate.equals('')">
+						AND l.enddate <![CDATA[<=]]> STR_TO_DATE(#{endDate}, '%Y-%m-%d')
+					</if>
+					GROUP BY l.no
+				) as table04
+	</select>
+	
+	<!-- 과락인원 목록 전체조회(그래프 출력용) -->
+	<select id="listFailedNumForGraph" resultType="kr.kosmo.jobkorea.statistics.model.FailedNumModel">
+		/*kr.kosmo.jobkorea.statistics.dao.FailedNumDao.listFailedNum*/
+		
+		SELECT	DATE_FORMAT(l.startdate, '%Y-%m-%d') as startdate
+			,	ifnull(table01.targetNum,0) as targetNum
+			,	ifnull(table03.failedNum,0) as failedNum
+		FROM	tb_lecture as l LEFT OUTER JOIN tb_tcourse as t
+					ON l.no = t.no
+				LEFT OUTER JOIN (
+									SELECT	no, count(*) as targetNum
+									FROM	tb_tcourse
+									GROUP BY no
+								) as table01
+					ON l.no = table01.no
+				LEFT OUTER JOIN	(
+									SELECT	no, count(*) as failedNum
+									FROM	(
+												SELECT	no, re, loginID, sum(score) as totalScore
+												FROM	tb_testanswer
+												GROUP BY no, re, loginID
+												HAVING	re = 'main' AND sum(score) <![CDATA[<]]> 60
+											) as table02
+									GROUP BY no
+								) as table03
+					ON t.no = table03.no
+		WHERE	1=1
+		<if test="startDate!=null and !startDate.equals('')">
+			AND l.startdate <![CDATA[>=]]> STR_TO_DATE(#{startDate}, '%Y-%m-%d')
+		</if>
+		<if test="endDate!=null and !endDate.equals('')">
+			AND l.enddate <![CDATA[<=]]> STR_TO_DATE(#{endDate}, '%Y-%m-%d')
+		</if>
+		GROUP BY l.no
+		
+	</select>
+	
+</mapper>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.peopleA.dao.StudentJYODao">
+
+     <!-- 학생관리 목록 조회 -->
+     <select id="studentList" resultType="kr.kosmo.jobkorea.peopleA.model.StudentJYOModel">
+       <!-- kr.kosmo.jobkorea.peopleA.dao.StudentJYODao.studentList -->
+       SELECT @rownum:=@rownum+1 as row_num,
+              tu.name as st_name, 
+              tu.password as st_password,
+              tu.loginID as loginID,
+              tu.hp as st_phone_number,
+              tu.birthday as st_birthday,
+              tu.joinDate as st_reg_date
+       FROM   tb_userinfo tu
+       WHERE  (@rownum:=0)=0
+       AND    tu.user_type = 'C'
+       <if test="(st_name1 != null) and (!st_name1.equals(''))">
+          AND tu.name LIKE concat('%',#{st_name1},'%')
+       </if>
+       LIMIT #{pageIndex}, #{pageSize}
+     </select>
+     
+     <!-- 목록 숫자  추출 -->
+     <select id="studentTotalCnt" resultType="int">
+     <!-- kr.kosmo.jobkorea.peopleA.dao.StudentJYODao.studentTotalCnt  -->
+      SELECT count(loginID) as tot_cnt
+      FROM tb_userinfo tu
+      WHERE tu.user_type = 'C'
+       <if test="(st_name1 != null) and (!st_name1.equals(''))">
+          AND tu.name LIKE concat('%',#{st_name1},'%')
+       </if>      
+     </select>
+     
+     <!-- 학생관리 단건 조회 -->
+     <select id="selectStudent" resultType="kr.kosmo.jobkorea.peopleA.model.StudentJYOModel">
+     <!-- kr.kosmo.jobkorea.peopleA.dao.StudentJYODao.selectStudent  -->
+     SELECT   tu.name as st_name
+            , tu.password as st_password
+            , tu.loginID as loginID
+            , tu.hp as st_phone_number
+            , tu.birthday as st_birthday
+            , tu.joinDate as st_reg_date
+      FROM    tb_userinfo tu
+      WHERE   tu.loginID = #{loginID}
+     </select>
+     
+     <!-- 학생관리 저장-신규등록 -->
+     <insert id="insertStudent">
+     INSERT INTO tb_userinfo
+     (
+         name,password,loginID,birthday,joinDate,hp,user_type
+     )
+     VALUES
+     (
+        #{st_name},
+        #{st_password},
+        #{loginID},
+        #{st_birthday},
+        NOW(),
+        #{st_phone_number},
+        #{usertype}
+     )
+     </insert>
+     
+     <!-- 학생관리 저장-수정 -->
+     <update id="updateStudent" parameterType="java.util.Map">
+     UPDATE tb_userinfo
+     SET    name = #{st_name},
+            password = #{st_password},
+            birthday = #{st_birthday},
+            hp = #{st_phone_number}
+     WHERE  loginID = #{loginID}
+     </update>
+     
+     <!-- 학생관리 삭제 -->
+     <delete id="deleteStudent">
+     DELETE FROM tb_userinfo WHERE name = #{st_name}
+     </delete>
+     
+</mapper>

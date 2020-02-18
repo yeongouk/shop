@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageC.dao.HomeworkDAO">
+	
+	<select id="SelectHomeworkList" resultType="kr.kosmo.jobkorea.manageC.model.HomeworkModel">
+		    select t.no
+			     , t.seq
+			     , t.loginID
+			     , t.nt_title
+			     , t.nt_note
+			     , t.reg_date
+			     , t.filename
+			     , t.filepath
+			     , t.filesize
+			     , l.title
+			     , u.name
+		     from tb_task t, tb_lecture l , tb_userinfo u
+		     where t.no=l.no
+		     and t.loginID=u.loginID
+		    <!--  and t.loginID=#{loginId1} -->
+		 <if test="(seq != null) and (!seq.equals(''))">
+		 	AND t.seq LIKE concat('%', #{seq}, '%')
+		 </if>	
+	     <if test="(loginID != null) and (!loginID.equals(''))">
+	     	AND t.loginID LIKE concat('%', #{loginID}, '%')
+	     </if> 
+	     ORDER BY t.no DESC
+	     LIMIT #{pageIndex}, #{pageSize}
+	</select>
+
+	<select id="countHomeworkList" resultType="int">
+		SELECT COUNT(1) FROM (
+			select t.no
+			     , t.seq
+			     , t.loginID
+			     , t.nt_title
+			     , t.nt_note
+			     , t.reg_date
+			     , t.filename
+			     , t.filepath
+			     , t.filesize
+			     , l.title
+			     , u.name
+		     from tb_task t, tb_lecture l , tb_userinfo u
+		     where t.no=l.no
+		     and t.loginID=u.loginID
+		    <!--   and t.loginID=#{loginId1} -->
+		 <if test="(seq != null) and (!seq.equals(''))">
+		 	AND t.seq LIKE concat('%', #{seq}, '%')
+		 </if>	
+	     <if test="(loginID != null) and (!loginID.equals(''))">
+	     	AND t.loginID LIKE concat('%', #{loginID}, '%')
+	     </if> 
+			 ORDER BY t.no DESC	)a
+	</select>
+	
+	<select id="selectHomeworkDtl" resultType="kr.kosmo.jobkorea.manageC.model.HomeworkModel">
+		select t.no
+			     , t.seq
+			     , t.loginID
+			     , t.nt_title
+			     , t.nt_note
+			     , t.reg_date
+			     , t.filename
+			     , t.filepath
+			     , t.filesize
+			     , l.title
+			     , u.name
+		     from tb_task t, tb_lecture l , tb_userinfo u
+		     where t.no=l.no
+		     and t.loginID=u.loginID 
+		     and t.seq = #{seq} 
+		     and  t.no = #{no}
+	</select>
+
+	
+	<!-- 자료제출 1건 추가 / 신규등록   -->
+	<insert id="inserHomework" parameterType="java.util.Map">
+        <selectKey resultType="int" keyProperty="h_seq" order="BEFORE">
+            select (IFNULL(MAX(seq),0) + 1) as seq from tb_task where no=#{no}
+        </selectKey>  
+		insert into tb_notice (no, seq, loginID, nt_title, reg_date, nt_note, filename, filepath, filesize) 
+			VALUES (#{no}, #{h_seq}, #{regID}, #{nt_title}, now(), #{nt_note}, #{filename}, #{filepath}, #{filesize})
+	</insert>
+	
+	
+	<!--자료제출 1건 수정  -->
+	<update id="updateHomework" parameterType="java.util.Map">
+		update tb_task
+			set nt_title = #{nt_title}, nt_note = #{nt_note} ,  reg_date = now()
+		where seq = #{seq} and no = #{no}
+	</update>
+	
+	
+	<!--자료제출 1건 삭제  -->
+	<delete id="deleteHomework" parameterType="java.util.Map">
+		delete from tb_task where seq = #{seq} and no = #{no}
+	</delete>
+	
+	
+	
+
+	
+	
+</mapper>

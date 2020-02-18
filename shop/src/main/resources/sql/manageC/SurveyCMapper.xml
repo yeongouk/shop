@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageC.dao.SurveyCDAO">
+
+	<!-- 설문조사 목록 조회 -->
+	<select id="listLectureGrp" resultType="java.util.Map">
+		SELECT	l.no as grp_lec_no
+			,	l.category as grp_lec_category
+			,	l.title as grp_lec_title
+			,	u.name as grp_user_teacherName
+			,	u.loginID as grp_user_teacherID
+			,   t.loginID as loginID
+			,	DATE_FORMAT(l.startdate, '%Y-%m-%d') as grp_lec_startDate
+			,	DATE_FORMAT(l.enddate, '%Y-%m-%d') as grp_lec_endDate
+		FROM	tb_userinfo as u RIGHT JOIN tb_lecture as l
+					ON u.loginID = l.loginID
+				RIGHT JOIN tb_tcourse as t
+					ON l.no = t.no
+		WHERE	t.loginID = #{loginID}
+		LIMIT #{pageIndex}, #{pageSize}
+	</select>
+	
+	<!-- 설문조사 목록 총 개수 조회 -->
+	<select id="countListLectureGrp" resultType="int">
+		SELECT	count(*)
+		FROM	tb_userinfo as u RIGHT JOIN tb_lecture as l
+					ON u.loginID = l.loginID
+				RIGHT JOIN tb_tcourse as t
+					ON l.no = t.no
+		WHERE	t.loginID = #{loginID}
+	</select>
+	
+	<select id="selectSurveyReg" resultType="java.util.Map">
+		SELECT	l.no as dtl_lec_no
+			,	l.title as dtl_lec_title
+			,	u.name as dtl_user_teacherName
+			,	l.loginID as dtl_user_teacherID
+		    ,	ifnull(s.survey,0) as dtl_sur_survey
+			,	ifnull(s.loginID,'') as userLoginID
+		FROM	tb_lecture as l  LEFT OUTER JOIN tb_survey as s 
+					ON s.no = l.no and s.loginID = #{loginID}
+				LEFT JOIN tb_userinfo as u
+					ON l.loginID = u.loginID
+		WHERE	l.no = #{grp_lec_no}  
+	</select>
+	
+	<insert id="insertSurveyReg">
+		INSERT INTO	tb_survey	
+		(
+				no, loginID, survey							
+		)
+		VALUES
+		(
+				#{dtl_lec_no}
+			,	#{loginID}
+			,	#{dtl_use_poa}
+		)
+							
+	</insert>
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+

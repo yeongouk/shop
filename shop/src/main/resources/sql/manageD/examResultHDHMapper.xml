@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="kr.kosmo.jobkorea.manageD.dao.ExamResultHDHDao">
+
+	<!-- 시험결과 목록 조회 -->
+	<select id="listExamResult" resultType="kr.kosmo.jobkorea.manageD.model.ExamResultModel">
+		/*kr.kosmo.jobkorea.manageD.dao.ExamResultHDHDao.listExamResult*/
+		<![CDATA[
+		SELECT	te.no as grp_test_no
+			,	te.re as grp_test_re
+			,	l.title as grp_lec_title
+			,	te.testname as grp_test_name
+			,	(SELECT dc.detail_name FROM tb_detail_code dc WHERE dc.group_code = 'test_div' AND dc.detail_code = te.re) as grp_testType
+			,	IFNULL(table03.tempTestTargetNum,0) as grp_testTargetNum
+			,	IFNULL(table05.tempTestedNum,0) as grp_testedNum
+			,	( IFNULL(table03.tempTestTargetNum,0) - IFNULL(table05.tempTestedNum,0) ) as grp_notTestedNum
+			
+		FROM	tb_userinfo as u INNER JOIN tb_tcourse as t 
+					ON u.loginID = t.loginID
+				LEFT JOIN tb_lecture as l 
+					ON t.no = l.no
+				RIGHT JOIN tb_test as te 
+					ON l.no = te.no
+				LEFT JOIN tb_testlist as tl
+					ON ( te.no = tl.no AND te.re = tl.re )
+				LEFT JOIN tb_testanswer as ta
+					ON ( tl.no = ta.no AND tl.re = ta.re AND tl.seq AND ta.seq )
+				LEFT JOIN	( 
+								(
+									/* table01 - 본시험 대상자수 */
+									SELECT	t01.no as no
+										,	te01.re as re
+										,	count(*) as tempTestTargetNum
+									FROM	tb_userinfo as u01 RIGHT JOIN tb_tcourse as t01 
+												ON u01.loginID = t01.loginID
+											LEFT JOIN tb_lecture as l01
+												ON t01.no = l01.no
+											RIGHT JOIN tb_test as te01 
+												ON l01.no = te01.no
+									WHERE	u01.user_type = 'C' AND te01.re = 'main'
+									GROUP BY te01.no, te01.re
+								) UNION ALL (
+									/* table04 - 재시험 대상자수 */
+									SELECT	table04.no as no
+										,	table04.re as re
+										,	count(*) as tempTestTargetNum
+									FROM 
+											(
+												SELECT	no, re, loginID, sum(score) as tempSumScore 
+												FROM	tb_testanswer
+												WHERE	re = 're'
+												GROUP BY no, re, loginID
+												HAVING	(IFNULL(sum(score),0) = 0 or IFNULL(sum(score),0) < 60)
+											) as table04
+									GROUP BY table04.no, table04.re
+								)
+							) as table03 ON ( l.no = table03.no AND te.re = table03.re )
+				LEFT JOIN	(
+								/* table05 - 응시자수 */
+								SELECT no, re, loginID, count(*) as tempTestedNum 
+								FROM	(
+										SELECT	no, re, loginID
+										FROM	tb_testanswer
+										GROUP BY no, re, loginID
+										) as table04
+								GROUP BY table04.no, table04.re, table04.loginID
+							) as table05 ON ( l.no = table05.no AND te.re = table05.re )
+		GROUP BY te.no, te.re
+		ORDER BY te.no, te.testname, te.re
+		LIMIT #{pageIndex}, #{pageSize}
+		]]>
+		
+		/*
+		사용자정보 tb_userinfo as u
+		수강정보 tb_tcourse as t
+		강의정보 tb_lecture as l
+		시험문제 tb_test as te
+		시험문제상세 tb_testlist as tl
+		시험답변점수 tb_testanswer as ta
+		
+		과정명 l.title
+		시험명 te.testname
+		구분 te.re
+		상태 
+		대상자수 testTargetNum
+		응시자수 testedNum
+		미응시자수 notTestedNum
+		*/
+	</select>
+	
+	<!-- 시험결과 목록 카운트 조회 -->
+	<select id="countListExamResult" resultType="int">
+		/*kr.kosmo.jobkorea.manageD.dao.ExamResultHDHDao.countListExamResult*/
+		SELECT	count(*)
+		FROM	(
+					SELECT	te.no
+						,	te.re
+					FROM	tb_userinfo as u INNER JOIN tb_tcourse as t 
+								ON u.loginID = t.loginID
+							LEFT JOIN tb_lecture as l 
+								ON t.no = l.no
+							RIGHT JOIN tb_test as te 
+								ON l.no = te.no
+							LEFT JOIN tb_testlist as tl
+								ON ( te.no = tl.no AND te.re = tl.re )
+							LEFT JOIN tb_testanswer as ta
+								ON ( tl.no = ta.no AND tl.re = ta.re AND tl.seq AND ta.seq )
+					GROUP BY te.no, te.re
+				) as dummy
+		
+	</select>
+	
+	<!-- 시험결과 상세 목록 조회 -->
+	<select id="listExamResultDtl" resultType="kr.kosmo.jobkorea.manageD.model.ExamResultDtlModel">
+		/*kr.kosmo.jobkorea.manageD.dao.ExamResultHDHDao.listExamResultDtl*/
+		<![CDATA[
+		SELECT	ta.no as dtl_ta_no
+			,	ta.re as dtl_ta_re
+			,	u.name as dtl_user_name
+			,	ta.loginID as dtl_ta_loginID
+			,	ta.tempSumScore as dtl_ta_score
+			,	(SELECT dc.detail_name FROM tb_detail_code dc WHERE dc.group_code = 'test_div' AND dc.detail_code = ta.re) as dtl_testType
+			,	CASE WHEN tempSumScore >= 60 THEN '통과'
+					ELSE '과락'
+				END as dtl_isPass
+		FROM	tb_userinfo as u INNER JOIN (
+						SELECT	no, re, loginID, sum(score) as tempSumScore 
+						FROM	tb_testanswer
+						GROUP BY no, re, loginID
+					) as ta ON u.loginID = ta.loginID
+		WHERE	ta.no = #{grp_test_no} AND ta.re = #{grp_test_re}
+		LIMIT #{pageIndex}, #{pageSize}
+		]]>
+		
+		/*
+		사용자정보 tb_userinfo as u
+		수강정보 tb_tcourse as t
+		강의정보 tb_lecture as l
+		시험문제 tb_test as te
+		시험문제상세 tb_testlist as tl
+		시험답변점수 tb_testanswer as ta
+		
+		학생명	u.name
+		점수	ta.score
+		구분	te.re
+		결과	isPass
+		*/
+		
+	</select>
+	
+	<!-- 시험결과 상세 목록 카운트 조회 -->
+	<select id="countListExamResultDtl" resultType="int">
+		/*kr.kosmo.jobkorea.manageD.dao.ExamResultHDHDao.countListExamResultDtl*/
+		SELECT	count(*)
+		FROM	(
+					SELECT	ta.no
+						,	ta.re
+					FROM	
+							(
+								SELECT	no, re, loginID
+								FROM	tb_testanswer
+								GROUP BY no, re, loginID
+							) as ta
+					WHERE	ta.no = #{grp_test_no} AND ta.re = #{grp_test_re}
+				) as dummy
+		
+	</select>
+	
+</mapper>
+
+
